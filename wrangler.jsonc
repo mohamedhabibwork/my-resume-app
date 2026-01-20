@@ -12,6 +12,22 @@
 	},
 	"observability": {
 		"enabled": true
+	},
+	/**
+	 * Environment Variables
+	 * https://developers.cloudflare.com/workers/wrangler/configuration/#environment-variables
+	 * Note: Use secrets to store sensitive data in production.
+	 * https://developers.cloudflare.com/workers/configuration/secrets/
+	 */
+	"vars": {
+		"VITE_FIREBASE_API_KEY": "AIzaSyAgStA9k3nThAxXYHg4hST58XFOQzi9QEY",
+		"VITE_FIREBASE_AUTH_DOMAIN": "resume-9eb69.firebaseapp.com",
+		"VITE_FIREBASE_PROJECT_ID": "resume-9eb69",
+		"VITE_FIREBASE_STORAGE_BUCKET": "resume-9eb69.firebasestorage.app",
+		"VITE_FIREBASE_MESSAGING_SENDER_ID": "1027677472358",
+		"VITE_FIREBASE_APP_ID": "1:1027677472358:web:71eef91fa64d0a032fcfa7",
+		"VITE_FIREBASE_MEASUREMENT_ID": "G-0RFZWH56MF",
+		"VITE_FIREBASE_VAPID_KEY": "BASwolvDh3IT6Uo2Uh5H0io-X5NyrnMj8v2GM8r2uc0NjV0SpwaheWMSRi-Dpq2hPm5mEMbCqC34Hl2pUcAQ_-o"
 	}
 	/**
 	 * Smart Placement
@@ -24,13 +40,6 @@
 	 * databases, object storage, AI inference, real-time communication and more.
 	 * https://developers.cloudflare.com/workers/runtime-apis/bindings/
 	 */
-	/**
-	 * Environment Variables
-	 * https://developers.cloudflare.com/workers/wrangler/configuration/#environment-variables
-	 * Note: Use secrets to store sensitive data.
-	 * https://developers.cloudflare.com/workers/configuration/secrets/
-	 */
-	// "vars": {  "MY_VARIABLE": "production_value" }
 	/**
 	 * Service Bindings (communicate between multiple Workers)
 	 * https://developers.cloudflare.com/workers/wrangler/configuration/#service-bindings

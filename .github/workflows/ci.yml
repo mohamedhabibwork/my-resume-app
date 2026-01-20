@@ -26,7 +26,7 @@ jobs:
       - name: Setup Bun | إعداد Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: ${{ env.BUN_VERSION }}
+          bun-version: ${{ env.BUN_VERSION || 'latest' }}
 
       - name: Install dependencies | تثبيت التبعيات
         run: bun install --frozen-lockfile
@@ -55,7 +55,7 @@ jobs:
       - name: Setup Bun | إعداد Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: ${{ env.BUN_VERSION }}
+          bun-version: ${{ env.BUN_VERSION || 'latest' }}
 
       - name: Install dependencies | تثبيت التبعيات
         run: bun install --frozen-lockfile
@@ -84,7 +84,7 @@ jobs:
       - name: Setup Bun | إعداد Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: ${{ env.BUN_VERSION }}
+          bun-version: ${{ env.BUN_VERSION || 'latest' }}
 
       - name: Install dependencies | تثبيت التبعيات
         run: bun install --frozen-lockfile
