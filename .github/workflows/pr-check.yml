@@ -18,7 +18,7 @@ jobs:
 
     steps:
       - name: Checkout code | استنساخ الكود
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -45,7 +45,7 @@ jobs:
 
     steps:
       - name: Checkout code | استنساخ الكود
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -87,7 +87,7 @@ jobs:
 
     steps:
       - name: Checkout code | استنساخ الكود
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Bun | إعداد Bun
         uses: oven-sh/setup-bun@v2
