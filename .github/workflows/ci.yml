@@ -21,7 +21,7 @@ jobs:
 
     steps:
       - name: Checkout code | استنساخ الكود
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Bun | إعداد Bun
         uses: oven-sh/setup-bun@v2
@@ -50,7 +50,7 @@ jobs:
 
     steps:
       - name: Checkout code | استنساخ الكود
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Bun | إعداد Bun
         uses: oven-sh/setup-bun@v2
@@ -64,7 +64,7 @@ jobs:
         run: bun run build
 
       - name: Upload build artifacts | رفع ملفات البناء
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: dist
           path: dist/
@@ -79,7 +79,7 @@ jobs:
 
     steps:
       - name: Checkout code | استنساخ الكود
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Bun | إعداد Bun
         uses: oven-sh/setup-bun@v2

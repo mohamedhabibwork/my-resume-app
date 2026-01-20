@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, onMounted, onUnmounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { useAuth } from '@/composables/useAuth'
 import { useI18n } from '@/i18n'
 
 const router = useRouter()
+const route = useRoute()
 const { t, toggleLocale, locale } = useI18n()
 const { isAuthenticated, userData, signOut } = useAuth()
 
@@ -12,11 +13,22 @@ const isScrolled = ref(false)
 const mobileMenuOpen = ref(false)
 
 // Handle scroll for sticky header effect
-if (typeof window !== 'undefined') {
-  window.addEventListener('scroll', () => {
-    isScrolled.value = window.scrollY > 10
-  })
+function handleScroll() {
+  isScrolled.value = window.scrollY > 10
 }
+
+onMounted(() => {
+  if (typeof window !== 'undefined') {
+    window.addEventListener('scroll', handleScroll)
+    handleScroll() // Initial check
+  }
+})
+
+onUnmounted(() => {
+  if (typeof window !== 'undefined') {
+    window.removeEventListener('scroll', handleScroll)
+  }
+})
 
 async function handleLogout() {
   await signOut()
@@ -27,31 +39,36 @@ async function handleLogout() {
 function closeMobileMenu() {
   mobileMenuOpen.value = false
 }
+
+function isActiveRoute(path: string): boolean {
+  return route.path === path
+}
 </script>
 
 <template>
   <header
-    class="navbar sticky top-0 z-50 transition-all duration-300"
+    class="navbar fixed top-0 left-0 right-0 z-50 transition-all duration-300 min-h-16"
     :class="[
       isScrolled
-        ? 'bg-base-100/95 backdrop-blur-md shadow-md border-b border-base-200'
-        : 'bg-base-100'
+        ? 'bg-base-100/95 backdrop-blur-lg shadow-lg border-b border-base-200/50'
+        : 'bg-base-100/80 backdrop-blur-sm'
     ]"
   >
-    <div class="container mx-auto px-4">
-      <!-- Navbar Start -->
-      <div class="navbar-start">
+    <div class="container mx-auto px-4 flex items-center justify-between">
+      <!-- Logo & Mobile Menu -->
+      <div class="flex items-center gap-2">
         <!-- Mobile Menu Button -->
         <div class="dropdown lg:hidden">
           <button
             tabindex="0"
-            class="btn btn-ghost btn-circle"
+            class="btn btn-ghost btn-sm btn-square"
             aria-label="Menu"
             @click="mobileMenuOpen = !mobileMenuOpen"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
-              class="h-6 w-6"
+              class="h-5 w-5 transition-transform duration-200"
+              :class="{ 'rotate-90': mobileMenuOpen }"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -74,268 +91,262 @@ function closeMobileMenu() {
           </button>
 
           <!-- Mobile Menu Dropdown -->
-          <ul
+          <div
             v-show="mobileMenuOpen"
-            tabindex="0"
-            class="menu menu-sm dropdown-content bg-base-100 rounded-box z-[100] mt-3 w-64 p-3 shadow-xl border border-base-200"
+            class="fixed inset-x-0 top-16 z-50 p-4 lg:hidden"
           >
-            <!-- Main Navigation -->
-            <li class="menu-title text-xs uppercase tracking-wider">
-              {{ t('nav.navigation') }}
-            </li>
-            <li>
-              <router-link
-                to="/"
-                class="gap-3"
-                @click="closeMobileMenu"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  class="h-5 w-5"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
-                  />
-                </svg>
-                {{ t('nav.home') }}
-              </router-link>
-            </li>
-            <li>
-              <router-link
-                to="/ats-checker"
-                class="gap-3"
-                @click="closeMobileMenu"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  class="h-5 w-5"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
-                </svg>
-                {{ t('nav.atsChecker') }}
-              </router-link>
-            </li>
-            <li>
-              <router-link
-                to="/about"
-                class="gap-3"
-                @click="closeMobileMenu"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  class="h-5 w-5"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
-                </svg>
-                {{ t('nav.about') }}
-              </router-link>
-            </li>
+            <div class="bg-base-100 rounded-2xl shadow-2xl border border-base-200 overflow-hidden">
+              <ul class="menu p-2">
+                <!-- Main Navigation -->
+                <li class="menu-title">
+                  <span class="text-xs uppercase tracking-wider opacity-60">{{ t('nav.navigation') }}</span>
+                </li>
+                <li>
+                  <router-link
+                    to="/"
+                    class="flex items-center gap-3 py-3"
+                    :class="{ 'bg-primary/10 text-primary': isActiveRoute('/') }"
+                    @click="closeMobileMenu"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      class="h-5 w-5"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
+                      />
+                    </svg>
+                    {{ t('nav.home') }}
+                  </router-link>
+                </li>
+                <li>
+                  <router-link
+                    to="/ats-checker"
+                    class="flex items-center gap-3 py-3"
+                    :class="{ 'bg-primary/10 text-primary': isActiveRoute('/ats-checker') }"
+                    @click="closeMobileMenu"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      class="h-5 w-5"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                      />
+                    </svg>
+                    <span class="flex items-center gap-2">
+                      {{ t('nav.atsChecker') }}
+                      <span class="badge badge-success badge-sm">{{ t('common.free') }}</span>
+                    </span>
+                  </router-link>
+                </li>
+                <li>
+                  <router-link
+                    to="/about"
+                    class="flex items-center gap-3 py-3"
+                    :class="{ 'bg-primary/10 text-primary': isActiveRoute('/about') }"
+                    @click="closeMobileMenu"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      class="h-5 w-5"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                      />
+                    </svg>
+                    {{ t('nav.about') }}
+                  </router-link>
+                </li>
 
-            <template v-if="isAuthenticated">
-              <div class="divider my-1" />
-              <li class="menu-title text-xs uppercase tracking-wider">
-                {{ t('nav.myAccount') }}
-              </li>
-              <li>
-                <router-link
-                  to="/dashboard"
-                  class="gap-3"
-                  @click="closeMobileMenu"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    class="h-5 w-5"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"
-                    />
-                  </svg>
-                  {{ t('nav.dashboard') }}
-                </router-link>
-              </li>
-              <li>
-                <router-link
-                  to="/resume"
-                  class="gap-3"
-                  @click="closeMobileMenu"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    class="h-5 w-5"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                    />
-                  </svg>
-                  {{ t('nav.resume') }}
-                </router-link>
-              </li>
-              <li>
-                <router-link
-                  to="/profile"
-                  class="gap-3"
-                  @click="closeMobileMenu"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    class="h-5 w-5"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                    />
-                  </svg>
-                  {{ t('nav.profile') }}
-                </router-link>
-              </li>
-              <div class="divider my-1" />
-              <li>
-                <button
-                  class="gap-3 text-error"
-                  @click="handleLogout"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    class="h-5 w-5"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-                    />
-                  </svg>
-                  {{ t('nav.logout') }}
-                </button>
-              </li>
-            </template>
+                <template v-if="isAuthenticated">
+                  <div class="divider my-2" />
+                  <li class="menu-title">
+                    <span class="text-xs uppercase tracking-wider opacity-60">{{ t('nav.myAccount') }}</span>
+                  </li>
+                  <li>
+                    <router-link
+                      to="/dashboard"
+                      class="flex items-center gap-3 py-3"
+                      :class="{ 'bg-primary/10 text-primary': isActiveRoute('/dashboard') }"
+                      @click="closeMobileMenu"
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        class="h-5 w-5"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"
+                        />
+                      </svg>
+                      {{ t('nav.dashboard') }}
+                    </router-link>
+                  </li>
+                  <li>
+                    <router-link
+                      to="/resume"
+                      class="flex items-center gap-3 py-3"
+                      :class="{ 'bg-primary/10 text-primary': isActiveRoute('/resume') }"
+                      @click="closeMobileMenu"
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        class="h-5 w-5"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                        />
+                      </svg>
+                      {{ t('nav.resume') }}
+                    </router-link>
+                  </li>
+                  <li>
+                    <router-link
+                      to="/profile"
+                      class="flex items-center gap-3 py-3"
+                      :class="{ 'bg-primary/10 text-primary': isActiveRoute('/profile') }"
+                      @click="closeMobileMenu"
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        class="h-5 w-5"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                        />
+                      </svg>
+                      {{ t('nav.profile') }}
+                    </router-link>
+                  </li>
+                  <div class="divider my-2" />
+                  <li>
+                    <button
+                      class="flex items-center gap-3 py-3 text-error hover:bg-error/10"
+                      @click="handleLogout"
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        class="h-5 w-5"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                        />
+                      </svg>
+                      {{ t('nav.logout') }}
+                    </button>
+                  </li>
+                </template>
 
-            <template v-else>
-              <div class="divider my-1" />
-              <li>
-                <router-link
-                  to="/login"
-                  class="gap-3"
-                  @click="closeMobileMenu"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    class="h-5 w-5"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"
-                    />
-                  </svg>
-                  {{ t('nav.login') }}
-                </router-link>
-              </li>
-              <li>
-                <router-link
-                  to="/signup"
-                  class="gap-3 bg-primary text-primary-content hover:bg-primary-focus"
-                  @click="closeMobileMenu"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    class="h-5 w-5"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"
-                    />
-                  </svg>
-                  {{ t('nav.register') }}
-                </router-link>
-              </li>
-            </template>
-          </ul>
+                <template v-else>
+                  <div class="divider my-2" />
+                  <li class="p-2">
+                    <div class="flex flex-col gap-2">
+                      <router-link
+                        to="/login"
+                        class="btn btn-outline btn-sm w-full"
+                        @click="closeMobileMenu"
+                      >
+                        {{ t('nav.login') }}
+                      </router-link>
+                      <router-link
+                        to="/signup"
+                        class="btn btn-primary btn-sm w-full"
+                        @click="closeMobileMenu"
+                      >
+                        {{ t('nav.register') }}
+                      </router-link>
+                    </div>
+                  </li>
+                </template>
+              </ul>
+            </div>
+          </div>
+
+          <!-- Backdrop -->
+          <div
+            v-show="mobileMenuOpen"
+            class="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 lg:hidden"
+            @click="closeMobileMenu"
+          />
         </div>
 
         <!-- Logo -->
         <router-link
           to="/"
-          class="btn btn-ghost gap-2 text-xl font-bold px-2 lg:px-4"
+          class="flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-base-200/50 transition-colors"
         >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            class="h-7 w-7 text-primary"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-            />
-          </svg>
-          <span class="hidden sm:inline bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-            ResumeApp
+          <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center shadow-md">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              class="h-5 w-5 text-white"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+              />
+            </svg>
+          </div>
+          <span class="hidden sm:block font-bold text-lg">
+            <span class="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">Resume</span><span class="text-base-content">App</span>
           </span>
         </router-link>
       </div>
 
-      <!-- Navbar Center - Desktop Navigation -->
-      <div class="navbar-center hidden lg:flex">
-        <ul class="menu menu-horizontal gap-1">
+      <!-- Desktop Navigation -->
+      <nav class="hidden lg:flex items-center">
+        <ul class="flex items-center gap-1">
           <li>
             <router-link
               to="/"
-              class="font-medium rounded-lg"
+              class="px-4 py-2 rounded-lg font-medium text-sm transition-all hover:bg-base-200"
+              :class="{ 'bg-primary/10 text-primary': isActiveRoute('/') }"
             >
               {{ t('nav.home') }}
             </router-link>
@@ -343,19 +354,19 @@ function closeMobileMenu() {
           <li>
             <router-link
               to="/ats-checker"
-              class="font-medium rounded-lg"
+              class="px-4 py-2 rounded-lg font-medium text-sm transition-all hover:bg-base-200 flex items-center gap-2"
+              :class="{ 'bg-primary/10 text-primary': isActiveRoute('/ats-checker') }"
             >
-              <span class="flex items-center gap-1">
-                {{ t('nav.atsChecker') }}
-                <span class="badge badge-success badge-xs">{{ t('common.free') }}</span>
-              </span>
+              {{ t('nav.atsChecker') }}
+              <span class="badge badge-success badge-xs">{{ t('common.free') }}</span>
             </router-link>
           </li>
           <template v-if="isAuthenticated">
             <li>
               <router-link
                 to="/dashboard"
-                class="font-medium rounded-lg"
+                class="px-4 py-2 rounded-lg font-medium text-sm transition-all hover:bg-base-200"
+                :class="{ 'bg-primary/10 text-primary': isActiveRoute('/dashboard') }"
               >
                 {{ t('nav.dashboard') }}
               </router-link>
@@ -363,7 +374,8 @@ function closeMobileMenu() {
             <li>
               <router-link
                 to="/resume"
-                class="font-medium rounded-lg"
+                class="px-4 py-2 rounded-lg font-medium text-sm transition-all hover:bg-base-200"
+                :class="{ 'bg-primary/10 text-primary': isActiveRoute('/resume') }"
               >
                 {{ t('nav.resume') }}
               </router-link>
@@ -372,27 +384,28 @@ function closeMobileMenu() {
           <li>
             <router-link
               to="/about"
-              class="font-medium rounded-lg"
+              class="px-4 py-2 rounded-lg font-medium text-sm transition-all hover:bg-base-200"
+              :class="{ 'bg-primary/10 text-primary': isActiveRoute('/about') }"
             >
               {{ t('nav.about') }}
             </router-link>
           </li>
         </ul>
-      </div>
+      </nav>
 
-      <!-- Navbar End -->
-      <div class="navbar-end gap-1 sm:gap-2">
+      <!-- Right Actions -->
+      <div class="flex items-center gap-1 sm:gap-2">
         <!-- Language Toggle -->
         <div
           class="tooltip tooltip-bottom"
           :data-tip="locale === 'en' ? 'العربية' : 'English'"
         >
           <button
-            class="btn btn-ghost btn-sm btn-circle"
+            class="btn btn-ghost btn-sm btn-square text-sm font-semibold"
             :aria-label="locale === 'en' ? 'Switch to Arabic' : 'Switch to English'"
             @click="toggleLocale"
           >
-            <span class="text-sm font-medium">{{ locale === 'en' ? 'ع' : 'EN' }}</span>
+            {{ locale === 'en' ? 'ع' : 'EN' }}
           </button>
         </div>
 
@@ -401,7 +414,7 @@ function closeMobileMenu() {
           class="tooltip tooltip-bottom"
           :data-tip="t('common.toggleTheme')"
         >
-          <label class="swap swap-rotate btn btn-ghost btn-sm btn-circle">
+          <label class="btn btn-ghost btn-sm btn-square swap swap-rotate">
             <input
               type="checkbox"
               class="theme-controller"
@@ -424,121 +437,144 @@ function closeMobileMenu() {
           </label>
         </div>
 
-        <!-- Authenticated: User Menu -->
+        <!-- Authenticated User Menu -->
         <template v-if="isAuthenticated">
           <div class="dropdown dropdown-end hidden lg:block">
-            <div
+            <button
               tabindex="0"
-              role="button"
-              class="btn btn-ghost btn-circle avatar ring-2 ring-primary ring-offset-2 ring-offset-base-100"
+              class="btn btn-ghost btn-sm gap-2 px-2"
             >
               <div class="avatar placeholder">
-                <div class="bg-primary text-primary-content w-10 rounded-full">
-                  <span class="text-lg">{{ (userData?.displayName || userData?.email || 'U').charAt(0).toUpperCase() }}</span>
+                <div class="bg-gradient-to-br from-primary to-secondary text-primary-content w-8 h-8 rounded-full">
+                  <span class="text-sm font-bold">{{ (userData?.displayName || userData?.email || 'U').charAt(0).toUpperCase() }}</span>
                 </div>
               </div>
-            </div>
-            <ul
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                class="h-4 w-4 opacity-60"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M19 9l-7 7-7-7"
+                />
+              </svg>
+            </button>
+            <div
               tabindex="0"
-              class="menu menu-sm dropdown-content bg-base-100 rounded-box z-[100] mt-3 w-56 p-2 shadow-xl border border-base-200"
+              class="dropdown-content bg-base-100 rounded-2xl z-[100] mt-2 w-64 p-2 shadow-2xl border border-base-200"
             >
-              <li class="px-4 py-2">
-                <div class="flex flex-col items-start">
-                  <span class="font-semibold truncate max-w-full">{{ userData?.displayName || 'User' }}</span>
-                  <span class="text-xs text-base-content/60 truncate max-w-full">{{ userData?.email }}</span>
-                </div>
-              </li>
-              <div class="divider my-0" />
-              <li>
-                <router-link
-                  to="/dashboard"
-                  class="gap-3"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    class="h-4 w-4"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
+              <!-- User Info -->
+              <div class="px-4 py-3 border-b border-base-200">
+                <p class="font-semibold text-sm truncate">
+                  {{ userData?.displayName || 'User' }}
+                </p>
+                <p class="text-xs text-base-content/60 truncate">
+                  {{ userData?.email }}
+                </p>
+              </div>
+
+              <!-- Menu Items -->
+              <ul class="menu p-0 mt-2">
+                <li>
+                  <router-link
+                    to="/dashboard"
+                    class="flex items-center gap-3 py-2.5 rounded-lg"
                   >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"
-                    />
-                  </svg>
-                  {{ t('nav.dashboard') }}
-                </router-link>
-              </li>
-              <li>
-                <router-link
-                  to="/profile"
-                  class="gap-3"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    class="h-4 w-4"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      class="h-4 w-4 opacity-70"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"
+                      />
+                    </svg>
+                    {{ t('nav.dashboard') }}
+                  </router-link>
+                </li>
+                <li>
+                  <router-link
+                    to="/resume"
+                    class="flex items-center gap-3 py-2.5 rounded-lg"
                   >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                    />
-                  </svg>
-                  {{ t('nav.profile') }}
-                </router-link>
-              </li>
-              <li>
-                <router-link
-                  to="/resume"
-                  class="gap-3"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    class="h-4 w-4"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      class="h-4 w-4 opacity-70"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                      />
+                    </svg>
+                    {{ t('nav.resume') }}
+                  </router-link>
+                </li>
+                <li>
+                  <router-link
+                    to="/profile"
+                    class="flex items-center gap-3 py-2.5 rounded-lg"
                   >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                    />
-                  </svg>
-                  {{ t('nav.resume') }}
-                </router-link>
-              </li>
-              <div class="divider my-0" />
-              <li>
-                <button
-                  class="gap-3 text-error hover:bg-error/10"
-                  @click="handleLogout"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    class="h-4 w-4"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      class="h-4 w-4 opacity-70"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                      />
+                    </svg>
+                    {{ t('nav.profile') }}
+                  </router-link>
+                </li>
+              </ul>
+
+              <div class="divider my-1" />
+
+              <ul class="menu p-0">
+                <li>
+                  <button
+                    class="flex items-center gap-3 py-2.5 rounded-lg text-error hover:bg-error/10"
+                    @click="handleLogout"
                   >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-                    />
-                  </svg>
-                  {{ t('nav.logout') }}
-                </button>
-              </li>
-            </ul>
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      class="h-4 w-4"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                      />
+                    </svg>
+                    {{ t('nav.logout') }}
+                  </button>
+                </li>
+              </ul>
+            </div>
           </div>
         </template>
 
@@ -553,7 +589,7 @@ function closeMobileMenu() {
             </router-link>
             <router-link
               to="/signup"
-              class="btn btn-primary btn-sm"
+              class="btn btn-primary btn-sm shadow-md hover:shadow-lg transition-shadow"
             >
               {{ t('nav.register') }}
             </router-link>
@@ -562,4 +598,7 @@ function closeMobileMenu() {
       </div>
     </div>
   </header>
+
+  <!-- Spacer for fixed header -->
+  <div class="h-16" />
 </template>
