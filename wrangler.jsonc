@@ -63,7 +63,6 @@
 	"vars": {
 		"ENVIRONMENT": "production",
 		"APP_NAME": "My Resume App",
-		"APP_URL": "https://my-resum-app.pages.dev",
 		"VITE_FIREBASE_API_KEY": "AIzaSyAgStA9k3nThAxXYHg4hST58XFOQzi9QEY",
 		"VITE_FIREBASE_AUTH_DOMAIN": "resume-9eb69.firebaseapp.com",
 		"VITE_FIREBASE_PROJECT_ID": "resume-9eb69",
@@ -178,7 +177,6 @@
 			"vars": {
 				"ENVIRONMENT": "production",
 				"APP_NAME": "My Resume App",
-				"APP_URL": "https://my-resum-app.pages.dev",
 				"VITE_FIREBASE_API_KEY": "AIzaSyAgStA9k3nThAxXYHg4hST58XFOQzi9QEY",
 				"VITE_FIREBASE_AUTH_DOMAIN": "resume-9eb69.firebaseapp.com",
 				"VITE_FIREBASE_PROJECT_ID": "resume-9eb69",
