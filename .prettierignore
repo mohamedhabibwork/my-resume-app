@@ -1,0 +1,8 @@
+dist
+node_modules
+.wrangler
+coverage
+*.md
+pnpm-lock.yaml
+package-lock.json
+bun.lock

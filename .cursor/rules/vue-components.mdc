@@ -1,0 +1,210 @@
+# Vue Component Rules
+
+## Component Structure
+
+Always use `<script setup lang="ts">` with this exact order:
+
+```vue
+<script setup lang="ts">
+// 1. Type Imports
+import type { Resume, User } from '@/types'
+
+// 2. Regular Imports
+import { ref, computed, watch, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
+import { useI18n } from '@/i18n'
+
+// 3. Props Definition
+interface Props {
+  title: string
+  isActive?: boolean
+  items?: string[]
+}
+const props = withDefaults(defineProps<Props>(), {
+  isActive: false,
+  items: () => []
+})
+
+// 4. Emits Definition
+const emit = defineEmits<{
+  update: [value: string]
+  delete: [id: string]
+  close: []
+}>()
+
+// 5. Composables
+const router = useRouter()
+const { t, isRtl } = useI18n()
+
+// 6. Reactive State
+const localValue = ref('')
+const isLoading = ref(false)
+const error = ref<string | null>(null)
+
+// 7. Computed Properties
+const displayTitle = computed(() => props.title.toUpperCase())
+const hasItems = computed(() => props.items.length > 0)
+
+// 8. Watchers
+watch(() => props.title, (newVal) => {
+  localValue.value = newVal
+})
+
+// 9. Lifecycle Hooks
+onMounted(() => {
+  // Initialize
+})
+
+// 10. Methods
+function handleClick() {
+  emit('update', localValue.value)
+}
+
+async function fetchData() {
+  isLoading.value = true
+  error.value = null
+  try {
+    // API call
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : 'Unknown error'
+  } finally {
+    isLoading.value = false
+  }
+}
+</script>
+
+<template>
+  <!-- Template content -->
+</template>
+<!-- NO <style> block - use Tailwind classes only -->
+```
+
+## Naming Conventions
+
+| Type | Pattern | Example |
+|------|---------|---------|
+| Components | PascalCase.vue | `ResumeCard.vue` |
+| Views | PascalCaseView.vue | `DashboardView.vue` |
+| Composables | useCamelCase.ts | `useResume.ts` |
+| Stores | useCamelCaseStore.ts | `useResumeStore.ts` |
+| Utils | camelCase.ts | `formatDate.ts` |
+| Types | PascalCase | `interface ResumeData` |
+
+## Props Best Practices
+
+```typescript
+// ✅ CORRECT - Typed props with defaults
+interface Props {
+  title: string
+  count?: number
+  items?: string[]
+  config?: { theme: string }
+}
+const props = withDefaults(defineProps<Props>(), {
+  count: 0,
+  items: () => [],
+  config: () => ({ theme: 'light' })
+})
+
+// ❌ FORBIDDEN - No types
+const props = defineProps(['title', 'count'])
+```
+
+## Emits Best Practices
+
+```typescript
+// ✅ CORRECT - Typed emits with payload types
+const emit = defineEmits<{
+  update: [value: string]
+  submit: [data: FormData]
+  close: []
+}>()
+
+// ❌ FORBIDDEN - No types
+const emit = defineEmits(['update', 'submit', 'close'])
+```
+
+## v-model Pattern
+
+```vue
+<script setup lang="ts">
+interface Props {
+  modelValue: string
+}
+const props = defineProps<Props>()
+
+const emit = defineEmits<{
+  'update:modelValue': [value: string]
+}>()
+
+const localValue = computed({
+  get: () => props.modelValue,
+  set: (value) => emit('update:modelValue', value)
+})
+</script>
+
+<template>
+  <input v-model="localValue" class="..." />
+</template>
+```
+
+## Template Guidelines
+
+### Conditional Rendering
+
+```vue
+<!-- ✅ Use v-if for expensive/rare renders -->
+<ExpensiveComponent v-if="showComponent" />
+
+<!-- ✅ Use v-show for frequent toggles -->
+<div v-show="isVisible" class="panel">...</div>
+
+<!-- ✅ Use template for multiple elements -->
+<template v-if="isLoggedIn">
+  <UserAvatar />
+  <UserMenu />
+</template>
+```
+
+### List Rendering
+
+```vue
+<!-- ✅ Always use :key with unique identifier -->
+<div v-for="item in items" :key="item.id" class="...">
+  {{ item.name }}
+</div>
+
+<!-- ✅ Use v-memo for expensive list items -->
+<div v-for="item in items" :key="item.id" v-memo="[item.id, item.updated]">
+  <ExpensiveComponent :data="item" />
+</div>
+
+<!-- ❌ FORBIDDEN - Index as key for dynamic lists -->
+<div v-for="(item, index) in items" :key="index">
+```
+
+### Self-Closing Tags
+
+```vue
+<!-- ✅ CORRECT - Self-closing for empty elements -->
+<BaseButton />
+<UserAvatar :src="avatarUrl" />
+<div class="divider" />
+
+<!-- ❌ FORBIDDEN - Unnecessary closing tags -->
+<BaseButton></BaseButton>
+```
+
+## Component Categories
+
+### UI Components (`src/components/ui/`)
+Base reusable components: Button, Input, Card, Modal, Select, Textarea, Toast
+
+### Layout Components (`src/components/layout/`)
+Page structure: AppHeader, AppLayout, Sidebar, Footer
+
+### Feature Components (`src/components/resume/`)
+Domain-specific: ResumePreview, EducationForm, SkillsForm
+
+### Auth Components (`src/components/auth/`)
+Authentication: LoginForm, SignupForm, ForgotPasswordForm

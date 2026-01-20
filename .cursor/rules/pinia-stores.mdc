@@ -1,0 +1,303 @@
+# Pinia Store Rules
+
+## Store Structure Template
+
+Always use the Composition API style (setup stores):
+
+```typescript
+// stores/useExampleStore.ts
+import { defineStore } from 'pinia'
+import { ref, computed } from 'vue'
+import type { Example } from '@/types'
+
+export const useExampleStore = defineStore('example', () => {
+  // ============================================
+  // STATE
+  // ============================================
+  const items = ref<Example[]>([])
+  const currentItem = ref<Example | null>(null)
+  const isLoading = ref(false)
+  const error = ref<string | null>(null)
+
+  // ============================================
+  // GETTERS (computed)
+  // ============================================
+  const itemCount = computed(() => items.value.length)
+  const hasItems = computed(() => items.value.length > 0)
+  const activeItems = computed(() =>
+    items.value.filter(item => item.isActive)
+  )
+
+  // ============================================
+  // ACTIONS
+  // ============================================
+
+  // Fetch all items
+  async function fetchItems() {
+    isLoading.value = true
+    error.value = null
+    try {
+      const response = await fetch('/api/examples')
+      if (!response.ok) throw new Error(`HTTP ${response.status}`)
+      items.value = await response.json()
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : 'Failed to fetch'
+      throw e
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  // Fetch single item
+  async function fetchItem(id: string) {
+    isLoading.value = true
+    error.value = null
+    try {
+      const response = await fetch(`/api/examples/${id}`)
+      if (!response.ok) throw new Error(`HTTP ${response.status}`)
+      currentItem.value = await response.json()
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : 'Failed to fetch'
+      throw e
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  // Create item
+  async function createItem(data: Omit<Example, 'id'>) {
+    isLoading.value = true
+    error.value = null
+    try {
+      const response = await fetch('/api/examples', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      })
+      if (!response.ok) throw new Error(`HTTP ${response.status}`)
+      const newItem = await response.json()
+      items.value.push(newItem)
+      return newItem
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : 'Failed to create'
+      throw e
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  // Update item
+  async function updateItem(id: string, data: Partial<Example>) {
+    isLoading.value = true
+    error.value = null
+    try {
+      const response = await fetch(`/api/examples/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      })
+      if (!response.ok) throw new Error(`HTTP ${response.status}`)
+      const updated = await response.json()
+      const index = items.value.findIndex(item => item.id === id)
+      if (index !== -1) items.value[index] = updated
+      if (currentItem.value?.id === id) currentItem.value = updated
+      return updated
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : 'Failed to update'
+      throw e
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  // Delete item
+  async function deleteItem(id: string) {
+    isLoading.value = true
+    error.value = null
+    try {
+      const response = await fetch(`/api/examples/${id}`, {
+        method: 'DELETE'
+      })
+      if (!response.ok) throw new Error(`HTTP ${response.status}`)
+      items.value = items.value.filter(item => item.id !== id)
+      if (currentItem.value?.id === id) currentItem.value = null
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : 'Failed to delete'
+      throw e
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  // Sync/local actions
+  function setCurrentItem(item: Example | null) {
+    currentItem.value = item
+  }
+
+  function clearError() {
+    error.value = null
+  }
+
+  function $reset() {
+    items.value = []
+    currentItem.value = null
+    isLoading.value = false
+    error.value = null
+  }
+
+  // ============================================
+  // RETURN
+  // ============================================
+  return {
+    // State
+    items,
+    currentItem,
+    isLoading,
+    error,
+    // Getters
+    itemCount,
+    hasItems,
+    activeItems,
+    // Actions
+    fetchItems,
+    fetchItem,
+    createItem,
+    updateItem,
+    deleteItem,
+    setCurrentItem,
+    clearError,
+    $reset
+  }
+})
+```
+
+## Available Stores
+
+### `useAuthStore` (`src/stores/useAuthStore.ts`)
+- `user` - Current authenticated user
+- `isAuthenticated` - Auth status
+- `isLoading` - Loading state
+- `login()` / `logout()` / `register()`
+
+### `useResumeStore` (`src/stores/useResumeStore.ts`)
+- `resumes` - List of user's resumes
+- `currentResume` - Active resume being edited
+- `fetchResumes()` / `createResume()` / `updateResume()` / `deleteResume()`
+
+### `useCoverLetterStore` (`src/stores/useCoverLetterStore.ts`)
+- `coverLetters` - List of cover letters
+- `currentCoverLetter` - Active cover letter
+- `fetchCoverLetters()` / `createCoverLetter()` / `updateCoverLetter()`
+
+## Best Practices
+
+### Always Handle Loading/Error States
+
+```typescript
+// In store
+const isLoading = ref(false)
+const error = ref<string | null>(null)
+
+async function fetchData() {
+  isLoading.value = true
+  error.value = null
+  try {
+    // ...
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : 'Error'
+    throw e
+  } finally {
+    isLoading.value = false
+  }
+}
+
+// In component
+const store = useExampleStore()
+const { items, isLoading, error } = storeToRefs(store)
+
+<template>
+  <div v-if="isLoading">{{ t('common.loading') }}</div>
+  <div v-else-if="error" class="text-red-500">{{ error }}</div>
+  <div v-else>
+    <!-- Content -->
+  </div>
+</template>
+```
+
+### Use `storeToRefs` for Reactive Destructuring
+
+```typescript
+import { storeToRefs } from 'pinia'
+
+const store = useResumeStore()
+
+// ❌ WRONG - Loses reactivity
+const { items, isLoading } = store
+
+// ✅ CORRECT - Maintains reactivity
+const { items, isLoading } = storeToRefs(store)
+
+// Actions don't need storeToRefs
+const { fetchItems, createItem } = store
+```
+
+### Implement `$reset` for Clean State
+
+```typescript
+function $reset() {
+  items.value = []
+  currentItem.value = null
+  isLoading.value = false
+  error.value = null
+}
+
+// Usage: Reset on logout
+const authStore = useAuthStore()
+const resumeStore = useResumeStore()
+
+async function logout() {
+  await authStore.logout()
+  resumeStore.$reset()
+}
+```
+
+### Use Persistence Plugin for Important State
+
+```typescript
+// In stores/index.ts - Configure Pinia with persistence
+import { createPinia } from 'pinia'
+import piniaPluginPersistedstate from 'pinia-plugin-persistedstate'
+
+const pinia = createPinia()
+pinia.use(piniaPluginPersistedstate)
+
+// In store - Enable persistence
+export const useResumeStore = defineStore('resume', () => {
+  // ...
+}, {
+  persist: {
+    paths: ['currentResume', 'lastEditedId']
+  }
+})
+```
+
+## Store Communication
+
+```typescript
+// Calling one store from another
+import { useAuthStore } from './useAuthStore'
+
+export const useResumeStore = defineStore('resume', () => {
+  async function fetchResumes() {
+    const authStore = useAuthStore()
+
+    if (!authStore.isAuthenticated) {
+      throw new Error('User not authenticated')
+    }
+
+    // Fetch resumes for authenticated user
+    const response = await fetch(`/api/users/${authStore.user.id}/resumes`)
+    // ...
+  }
+})
+```

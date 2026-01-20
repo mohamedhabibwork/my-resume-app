@@ -1,0 +1,38 @@
+#!/bin/sh
+
+# Conventional commit message validation
+# التحقق من صيغة رسالة الإيداع
+
+commit_regex='^(feat|fix|docs|style|refactor|test|chore|perf|ci|build|revert)(\(.+\))?: .{1,100}$'
+commit_msg=$(cat "$1")
+
+if ! echo "$commit_msg" | grep -qE "$commit_regex"; then
+  echo ""
+  echo "❌ Invalid commit message format!"
+  echo "❌ صيغة رسالة الإيداع غير صحيحة!"
+  echo ""
+  echo "EN: Commit message must match: type(scope): message"
+  echo "AR: يجب أن تتطابق رسالة الإيداع مع: type(scope): message"
+  echo ""
+  echo "Types | الأنواع:"
+  echo "  feat     - New feature | ميزة جديدة"
+  echo "  fix      - Bug fix | إصلاح خطأ"
+  echo "  docs     - Documentation | التوثيق"
+  echo "  style    - Code style | تنسيق الكود"
+  echo "  refactor - Refactoring | إعادة الهيكلة"
+  echo "  test     - Tests | الاختبارات"
+  echo "  chore    - Maintenance | الصيانة"
+  echo "  perf     - Performance | الأداء"
+  echo "  ci       - CI/CD | التكامل المستمر"
+  echo "  build    - Build system | نظام البناء"
+  echo "  revert   - Revert changes | التراجع عن التغييرات"
+  echo ""
+  echo "Examples | أمثلة:"
+  echo "  feat(resume): add education section"
+  echo "  fix(api): handle network errors"
+  echo "  docs: update README"
+  echo ""
+  exit 1
+fi
+
+echo "✅ Commit message is valid | رسالة الإيداع صحيحة"

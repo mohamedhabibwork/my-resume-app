@@ -1,0 +1,273 @@
+# Composables Rules
+
+## Composable Template
+
+```typescript
+// composables/useExample.ts
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import type { Ref } from 'vue'
+
+interface UseExampleOptions {
+  initialValue?: string
+  autoFetch?: boolean
+}
+
+interface UseExampleReturn {
+  value: Ref<string>
+  isActive: Ref<boolean>
+  isLoading: Ref<boolean>
+  error: Ref<string | null>
+  activate: () => void
+  deactivate: () => void
+  reset: () => void
+}
+
+export function useExample(options: UseExampleOptions = {}): UseExampleReturn {
+  const { initialValue = '', autoFetch = false } = options
+
+  // State
+  const value = ref(initialValue)
+  const isActive = ref(false)
+  const isLoading = ref(false)
+  const error = ref<string | null>(null)
+
+  // Methods
+  function activate() {
+    isActive.value = true
+  }
+
+  function deactivate() {
+    isActive.value = false
+  }
+
+  function reset() {
+    value.value = initialValue
+    isActive.value = false
+    error.value = null
+  }
+
+  // Lifecycle
+  onMounted(() => {
+    if (autoFetch) {
+      // Auto-fetch logic
+    }
+  })
+
+  onUnmounted(() => {
+    // Cleanup (remove listeners, cancel requests, etc.)
+  })
+
+  return {
+    value,
+    isActive,
+    isLoading,
+    error,
+    activate,
+    deactivate,
+    reset
+  }
+}
+```
+
+## Available Composables
+
+Import from `@/composables`:
+
+### API Composables
+
+```typescript
+// useApi - GET requests with loading/error
+import { useApi } from '@/composables'
+
+const { data, error, isLoading, execute } = useApi<User[]>()
+await execute('/api/users')
+
+// useApiMutation - POST/PUT/DELETE requests
+import { useApiMutation } from '@/composables'
+
+const { data, error, isLoading, execute } = useApiMutation<CreateUserInput, User>()
+await execute('/api/users', { method: 'POST', body: userData })
+```
+
+### State Composables
+
+```typescript
+// useLoading - Single loading state
+const { isLoading, startLoading, stopLoading, withLoading } = useLoading()
+await withLoading(async () => {
+  await fetchData()
+})
+
+// useMultiLoading - Multiple named loading states
+const { isLoading, startLoading, stopLoading } = useMultiLoading()
+startLoading('users')
+// isLoading('users') === true
+
+// useError - Error state management
+const { error, setError, clearError, hasError } = useError()
+setError('Something went wrong')
+```
+
+### Storage Composables
+
+```typescript
+// useLocalStorage - Sync with localStorage
+const theme = useLocalStorage('theme', 'light')
+theme.value = 'dark' // Automatically persisted
+
+// useSessionStorage - Sync with sessionStorage
+const token = useSessionStorage('token', '')
+```
+
+### Utility Composables
+
+```typescript
+// useDebounce - Debounce a ref value
+const searchQuery = ref('')
+const debouncedQuery = useDebounce(searchQuery, 300)
+
+// useDebounceFn - Debounce a function
+const search = useDebounceFn((query: string) => {
+  // Search logic
+}, 300)
+
+// useThrottleFn - Throttle a function
+const handleScroll = useThrottleFn(() => {
+  // Scroll logic
+}, 100)
+```
+
+### Domain Composables
+
+```typescript
+// useAuth - Authentication
+const { user, isAuthenticated, login, logout, register } = useAuth()
+
+// useResume - Resume operations
+const { resume, updateResume, saveResume } = useResume(resumeId)
+
+// useToast - Toast notifications
+const { showToast, showSuccess, showError } = useToast()
+showSuccess('Resume saved!')
+
+// useI18n - Internationalization
+const { t, locale, isRtl, setLocale } = useI18n()
+```
+
+## Composable Best Practices
+
+### 1. Return an Object (Not Array)
+
+```typescript
+// ✅ CORRECT - Object return for named access
+export function useCounter() {
+  const count = ref(0)
+  const increment = () => count.value++
+  return { count, increment }
+}
+
+// Usage: const { count, increment } = useCounter()
+
+// ❌ AVOID - Array return (less clear)
+export function useCounter() {
+  return [count, increment]
+}
+```
+
+### 2. Use Options Object for Multiple Parameters
+
+```typescript
+// ✅ CORRECT - Options object
+interface UseApiOptions {
+  baseUrl?: string
+  headers?: Record<string, string>
+  timeout?: number
+}
+
+export function useApi(options: UseApiOptions = {}) {
+  const { baseUrl = '/api', timeout = 5000 } = options
+  // ...
+}
+
+// ❌ AVOID - Multiple positional parameters
+export function useApi(baseUrl: string, headers: object, timeout: number) {
+  // Hard to remember order, can't skip params
+}
+```
+
+### 3. Handle Cleanup in onUnmounted
+
+```typescript
+export function useEventListener(
+  target: EventTarget,
+  event: string,
+  handler: EventListener
+) {
+  onMounted(() => {
+    target.addEventListener(event, handler)
+  })
+
+  onUnmounted(() => {
+    target.removeEventListener(event, handler)
+  })
+}
+
+export function useInterval(callback: () => void, delay: number) {
+  let intervalId: number | null = null
+
+  onMounted(() => {
+    intervalId = window.setInterval(callback, delay)
+  })
+
+  onUnmounted(() => {
+    if (intervalId) window.clearInterval(intervalId)
+  })
+}
+```
+
+### 4. Make Refs Reactive with toRef/toRefs
+
+```typescript
+export function useForm<T extends Record<string, unknown>>(initial: T) {
+  const form = reactive({ ...initial })
+
+  // Return reactive refs
+  return {
+    form: toRefs(form),
+    reset: () => Object.assign(form, initial)
+  }
+}
+```
+
+### 5. Type the Return Value
+
+```typescript
+interface UseCounterReturn {
+  count: Ref<number>
+  doubled: ComputedRef<number>
+  increment: () => void
+  decrement: () => void
+  reset: () => void
+}
+
+export function useCounter(initial = 0): UseCounterReturn {
+  const count = ref(initial)
+  const doubled = computed(() => count.value * 2)
+
+  return {
+    count,
+    doubled,
+    increment: () => count.value++,
+    decrement: () => count.value--,
+    reset: () => count.value = initial
+  }
+}
+```
+
+## Creating New Composables
+
+1. Create file in `src/composables/` with `use` prefix
+2. Add export to `src/composables/index.ts`
+3. Follow the template structure above
+4. Add TypeScript types for options and return values
+5. Handle cleanup in `onUnmounted` if needed

@@ -1,0 +1,233 @@
+# TypeScript Rules
+
+## Type Definition Guidelines
+
+### Use `interface` for Objects
+
+```typescript
+// ✅ CORRECT - Interface for object shapes
+interface User {
+  id: string
+  name: string
+  email: string
+  createdAt: Date
+}
+
+interface Resume {
+  id: string
+  title: string
+  personalInfo: PersonalInfo
+  workExperience: WorkExperience[]
+  education: Education[]
+}
+```
+
+### Use `type` for Unions and Primitives
+
+```typescript
+// ✅ CORRECT - Type for unions
+type Status = 'draft' | 'published' | 'archived'
+type ID = string
+type Nullable<T> = T | null
+
+// ✅ CORRECT - Type for function signatures
+type AsyncFn<T> = () => Promise<T>
+type EventHandler = (event: MouseEvent) => void
+```
+
+## Const Objects Over Enums
+
+```typescript
+// ✅ PREFERRED - Const objects with as const
+const SKILL_LEVELS = {
+  BEGINNER: 'beginner',
+  INTERMEDIATE: 'intermediate',
+  ADVANCED: 'advanced',
+  EXPERT: 'expert'
+} as const
+
+type SkillLevel = typeof SKILL_LEVELS[keyof typeof SKILL_LEVELS]
+
+const RESUME_STATUS = {
+  DRAFT: 'draft',
+  PUBLISHED: 'published',
+  ARCHIVED: 'archived'
+} as const
+
+type ResumeStatus = typeof RESUME_STATUS[keyof typeof RESUME_STATUS]
+
+// ❌ AVOID - Enums have limitations
+enum Status { DRAFT, PUBLISHED, ARCHIVED }
+```
+
+## Type Imports
+
+```typescript
+// ✅ CORRECT - Use type imports for types only
+import type { Resume, User, PersonalInfo } from '@/types'
+import type { Ref, ComputedRef } from 'vue'
+
+// Regular imports for values
+import { ref, computed } from 'vue'
+import { formatDate } from '@/utils'
+```
+
+## Generic Types
+
+```typescript
+// ✅ CORRECT - Useful generic patterns
+interface ApiResponse<T> {
+  data: T
+  success: boolean
+  message?: string
+}
+
+interface PaginatedResponse<T> {
+  items: T[]
+  total: number
+  page: number
+  pageSize: number
+  hasMore: boolean
+}
+
+// Usage
+type UsersResponse = ApiResponse<User[]>
+type ResumeResponse = PaginatedResponse<Resume>
+```
+
+## Utility Types
+
+```typescript
+// Built-in utility types to use
+type PartialResume = Partial<Resume>           // All props optional
+type RequiredUser = Required<User>              // All props required
+type ReadonlyResume = Readonly<Resume>          // Immutable
+type UserName = Pick<User, 'id' | 'name'>       // Pick specific props
+type UserWithoutEmail = Omit<User, 'email'>     // Omit specific props
+type ResumeRecord = Record<string, Resume>      // Dictionary type
+
+// Custom utility types
+type DeepPartial<T> = {
+  [P in keyof T]?: T[P] extends object ? DeepPartial<T[P]> : T[P]
+}
+
+type NonNullableFields<T> = {
+  [P in keyof T]: NonNullable<T[P]>
+}
+```
+
+## Type Guards
+
+```typescript
+// ✅ CORRECT - Type guards for runtime checks
+function isUser(obj: unknown): obj is User {
+  return (
+    typeof obj === 'object' &&
+    obj !== null &&
+    'id' in obj &&
+    'email' in obj
+  )
+}
+
+function isResume(obj: unknown): obj is Resume {
+  return (
+    typeof obj === 'object' &&
+    obj !== null &&
+    'personalInfo' in obj &&
+    'workExperience' in obj
+  )
+}
+
+// Usage
+if (isUser(data)) {
+  console.log(data.email) // TypeScript knows it's User
+}
+```
+
+## Strict Mode Rules
+
+### No `any` Type
+
+```typescript
+// ❌ FORBIDDEN
+const data: any = fetchData()
+function process(input: any) { }
+
+// ✅ CORRECT - Use specific types or unknown
+const data: unknown = fetchData()
+function process(input: Record<string, unknown>) { }
+
+// If type is truly unknown, use unknown with type guards
+function handleResponse(response: unknown) {
+  if (isUser(response)) {
+    // Now TypeScript knows it's User
+  }
+}
+```
+
+### No Non-null Assertions (unless justified)
+
+```typescript
+// ❌ AVOID - Non-null assertion
+const element = document.getElementById('app')!
+element.classList.add('active')
+
+// ✅ CORRECT - Handle null case
+const element = document.getElementById('app')
+if (element) {
+  element.classList.add('active')
+}
+
+// ✅ CORRECT - Optional chaining
+element?.classList.add('active')
+```
+
+## Project Type Definitions
+
+Located in `src/types/index.ts`:
+
+```typescript
+// Core types
+export interface User { ... }
+export interface Resume { ... }
+export interface PersonalInfo { ... }
+export interface WorkExperience { ... }
+export interface Education { ... }
+export interface Skill { ... }
+export interface Project { ... }
+export interface Certification { ... }
+export interface Language { ... }
+
+// API types
+export interface ApiResponse<T> { ... }
+export interface PaginatedResponse<T> { ... }
+
+// UI types
+export type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'ghost'
+export type ButtonSize = 'sm' | 'md' | 'lg'
+export type ToastType = 'success' | 'error' | 'warning' | 'info'
+```
+
+## Error Handling Types
+
+```typescript
+// ✅ CORRECT - Typed error handling
+interface AppError {
+  code: string
+  message: string
+  details?: Record<string, unknown>
+}
+
+function handleError(error: unknown): AppError {
+  if (error instanceof Error) {
+    return {
+      code: 'UNKNOWN_ERROR',
+      message: error.message
+    }
+  }
+  return {
+    code: 'UNKNOWN_ERROR',
+    message: 'An unexpected error occurred'
+  }
+}
+```

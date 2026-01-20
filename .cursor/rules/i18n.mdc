@@ -1,0 +1,325 @@
+# Internationalization (i18n) Rules
+
+## CRITICAL: No Hardcoded Strings
+
+All user-facing text MUST be translated. Never hardcode strings in components.
+
+```vue
+<!-- ❌ FORBIDDEN - Hardcoded strings -->
+<button>Save</button>
+<p>Loading...</p>
+<h1>Welcome to My Resume App</h1>
+<span>Error: Something went wrong</span>
+
+<!-- ✅ CORRECT - Use translations -->
+<script setup lang="ts">
+import { useI18n } from '@/i18n'
+const { t } = useI18n()
+</script>
+
+<template>
+  <button>{{ t('common.save') }}</button>
+  <p>{{ t('common.loading') }}</p>
+  <h1>{{ t('home.welcome') }}</h1>
+  <span>{{ t('errors.somethingWentWrong') }}</span>
+</template>
+```
+
+## Translation Files
+
+### English (`src/i18n/en.ts`)
+
+```typescript
+export default {
+  // Common
+  common: {
+    save: 'Save',
+    cancel: 'Cancel',
+    delete: 'Delete',
+    edit: 'Edit',
+    add: 'Add',
+    remove: 'Remove',
+    loading: 'Loading...',
+    search: 'Search',
+    submit: 'Submit',
+    back: 'Back',
+    next: 'Next',
+    previous: 'Previous',
+    close: 'Close',
+    confirm: 'Confirm',
+    yes: 'Yes',
+    no: 'No',
+    or: 'or',
+    and: 'and'
+  },
+
+  // Errors
+  errors: {
+    required: 'This field is required',
+    invalidEmail: 'Please enter a valid email',
+    somethingWentWrong: 'Something went wrong',
+    networkError: 'Network error. Please try again.',
+    unauthorized: 'You are not authorized to perform this action'
+  },
+
+  // Auth
+  auth: {
+    login: 'Log in',
+    logout: 'Log out',
+    signup: 'Sign up',
+    email: 'Email',
+    password: 'Password',
+    forgotPassword: 'Forgot password?',
+    resetPassword: 'Reset password',
+    confirmPassword: 'Confirm password'
+  },
+
+  // Resume
+  resume: {
+    title: 'Resume',
+    resumes: 'Resumes',
+    createNew: 'Create new resume',
+    personalInfo: 'Personal Information',
+    workExperience: 'Work Experience',
+    education: 'Education',
+    skills: 'Skills',
+    projects: 'Projects',
+    certifications: 'Certifications',
+    languages: 'Languages'
+  },
+
+  // Navigation
+  nav: {
+    home: 'Home',
+    dashboard: 'Dashboard',
+    profile: 'Profile',
+    settings: 'Settings',
+    about: 'About'
+  }
+}
+```
+
+### Arabic (`src/i18n/ar.ts`)
+
+```typescript
+export default {
+  // Common
+  common: {
+    save: 'حفظ',
+    cancel: 'إلغاء',
+    delete: 'حذف',
+    edit: 'تعديل',
+    add: 'إضافة',
+    remove: 'إزالة',
+    loading: 'جاري التحميل...',
+    search: 'بحث',
+    submit: 'إرسال',
+    back: 'رجوع',
+    next: 'التالي',
+    previous: 'السابق',
+    close: 'إغلاق',
+    confirm: 'تأكيد',
+    yes: 'نعم',
+    no: 'لا',
+    or: 'أو',
+    and: 'و'
+  },
+
+  // Errors
+  errors: {
+    required: 'هذا الحقل مطلوب',
+    invalidEmail: 'الرجاء إدخال بريد إلكتروني صحيح',
+    somethingWentWrong: 'حدث خطأ ما',
+    networkError: 'خطأ في الشبكة. يرجى المحاولة مرة أخرى.',
+    unauthorized: 'غير مصرح لك بتنفيذ هذا الإجراء'
+  },
+
+  // Auth
+  auth: {
+    login: 'تسجيل الدخول',
+    logout: 'تسجيل الخروج',
+    signup: 'إنشاء حساب',
+    email: 'البريد الإلكتروني',
+    password: 'كلمة المرور',
+    forgotPassword: 'نسيت كلمة المرور؟',
+    resetPassword: 'إعادة تعيين كلمة المرور',
+    confirmPassword: 'تأكيد كلمة المرور'
+  },
+
+  // Resume
+  resume: {
+    title: 'السيرة الذاتية',
+    resumes: 'السير الذاتية',
+    createNew: 'إنشاء سيرة ذاتية جديدة',
+    personalInfo: 'المعلومات الشخصية',
+    workExperience: 'الخبرة العملية',
+    education: 'التعليم',
+    skills: 'المهارات',
+    projects: 'المشاريع',
+    certifications: 'الشهادات',
+    languages: 'اللغات'
+  },
+
+  // Navigation
+  nav: {
+    home: 'الرئيسية',
+    dashboard: 'لوحة التحكم',
+    profile: 'الملف الشخصي',
+    settings: 'الإعدادات',
+    about: 'حول'
+  }
+}
+```
+
+## Using Translations
+
+### Basic Usage
+
+```vue
+<script setup lang="ts">
+import { useI18n } from '@/i18n'
+
+const { t, locale, isRtl, setLocale } = useI18n()
+</script>
+
+<template>
+  <div :dir="isRtl ? 'rtl' : 'ltr'">
+    <h1>{{ t('nav.home') }}</h1>
+    <button @click="setLocale('ar')">العربية</button>
+    <button @click="setLocale('en')">English</button>
+  </div>
+</template>
+```
+
+### With Interpolation
+
+```typescript
+// In translation file
+export default {
+  greeting: 'Hello, {name}!',
+  items: 'You have {count} items'
+}
+
+// In component
+t('greeting', { name: user.name })  // "Hello, John!"
+t('items', { count: 5 })            // "You have 5 items"
+```
+
+### Nested Keys
+
+```typescript
+// Access nested keys with dot notation
+t('auth.login')         // "Log in"
+t('resume.workExperience')  // "Work Experience"
+t('errors.required')    // "This field is required"
+```
+
+## Adding New Translations
+
+1. Add the key to `src/i18n/en.ts`
+2. Add the Arabic translation to `src/i18n/ar.ts`
+3. Use dot notation for organization
+
+```typescript
+// Step 1: Add to en.ts
+export default {
+  // ... existing
+  myFeature: {
+    title: 'My Feature Title',
+    description: 'This is the description'
+  }
+}
+
+// Step 2: Add to ar.ts
+export default {
+  // ... existing
+  myFeature: {
+    title: 'عنوان الميزة',
+    description: 'هذا هو الوصف'
+  }
+}
+
+// Step 3: Use in component
+t('myFeature.title')
+t('myFeature.description')
+```
+
+## RTL Support
+
+### Conditional Classes
+
+```vue
+<template>
+  <!-- Using isRtl -->
+  <div :class="{ 'text-right': isRtl, 'text-left': !isRtl }">
+    Content
+  </div>
+
+  <!-- Using Tailwind RTL utilities -->
+  <div class="text-left rtl:text-right mr-4 rtl:mr-0 rtl:ml-4">
+    Content
+  </div>
+
+  <!-- Using logical properties (preferred) -->
+  <div class="text-start ms-4 me-2">
+    Content
+  </div>
+</template>
+```
+
+### Icons and Arrows
+
+```vue
+<!-- Flip icons in RTL -->
+<ChevronRightIcon :class="{ 'rotate-180': isRtl }" />
+
+<!-- Or use CSS -->
+<span class="rtl:rotate-180">→</span>
+```
+
+## Common Patterns
+
+### Form Labels
+
+```vue
+<label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+  {{ t('auth.email') }}
+</label>
+<input type="email" :placeholder="t('auth.email')" />
+```
+
+### Error Messages
+
+```vue
+<span v-if="error" class="text-red-500 text-sm">
+  {{ t(`errors.${error}`) }}
+</span>
+
+<!-- Or with fallback -->
+<span v-if="error" class="text-red-500 text-sm">
+  {{ t(`errors.${error}`, t('errors.somethingWentWrong')) }}
+</span>
+```
+
+### Dynamic Content
+
+```vue
+<template>
+  <p>
+    {{ t('resume.sectionCount', { count: sections.length }) }}
+  </p>
+</template>
+```
+
+## Translation Keys Checklist
+
+When adding new features, ensure translations for:
+- [ ] Page titles
+- [ ] Button labels
+- [ ] Form labels and placeholders
+- [ ] Error messages
+- [ ] Success messages
+- [ ] Empty state messages
+- [ ] Confirmation dialogs
+- [ ] Tooltips
+- [ ] Navigation items

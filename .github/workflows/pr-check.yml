@@ -1,0 +1,110 @@
+# Pull Request Checks - فحوصات طلبات الدمج
+name: PR Check
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+env:
+  BUN_VERSION: "latest"
+
+jobs:
+  # ===========================================
+  # PR Validation - التحقق من طلب الدمج
+  # ===========================================
+  validate:
+    name: Validate PR
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code | استنساخ الكود
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Bun | إعداد Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: Install dependencies | تثبيت التبعيات
+        run: bun install --frozen-lockfile
+
+      - name: Run all checks | تشغيل جميع الفحوصات
+        run: bun run check
+
+      - name: Build project | بناء المشروع
+        run: bun run build
+
+  # ===========================================
+  # Commit Message Check - فحص رسائل الإيداع
+  # ===========================================
+  commitlint:
+    name: Commit Messages
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code | استنساخ الكود
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check commit messages | فحص رسائل الإيداع
+        run: |
+          # Get commits in this PR
+          COMMITS=$(git log --format="%s" origin/${{ github.base_ref }}..${{ github.head_ref }} 2>/dev/null || git log --format="%s" -10)
+
+          # Regex for conventional commits
+          REGEX='^(feat|fix|docs|style|refactor|test|chore|perf|ci|build|revert)(\(.+\))?: .{1,100}$'
+
+          FAILED=0
+          while IFS= read -r commit; do
+            if [[ -n "$commit" ]] && ! echo "$commit" | grep -qE "$REGEX"; then
+              echo "❌ Invalid: $commit"
+              echo "❌ غير صحيح: $commit"
+              FAILED=1
+            else
+              echo "✅ Valid: $commit"
+            fi
+          done <<< "$COMMITS"
+
+          if [ $FAILED -eq 1 ]; then
+            echo ""
+            echo "Some commits don't follow conventional commit format."
+            echo "بعض الإيداعات لا تتبع صيغة الإيداع التقليدية."
+            echo ""
+            echo "Format: type(scope): message"
+            echo "Types: feat, fix, docs, style, refactor, test, chore, perf, ci, build, revert"
+            exit 1
+          fi
+
+  # ===========================================
+  # Size Check - فحص الحجم
+  # ===========================================
+  size:
+    name: Bundle Size
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code | استنساخ الكود
+        uses: actions/checkout@v4
+
+      - name: Setup Bun | إعداد Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: Install dependencies | تثبيت التبعيات
+        run: bun install --frozen-lockfile
+
+      - name: Build and check size | البناء وفحص الحجم
+        run: |
+          bun run build
+          echo "## Bundle Size Report | تقرير حجم الحزمة" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| File | Size |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|------|" >> $GITHUB_STEP_SUMMARY
+          find dist -name "*.js" -o -name "*.css" | while read file; do
+            SIZE=$(du -h "$file" | cut -f1)
+            echo "| $file | $SIZE |" >> $GITHUB_STEP_SUMMARY
+          done

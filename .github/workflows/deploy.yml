@@ -1,0 +1,53 @@
+# Deploy to Cloudflare Pages - النشر على Cloudflare
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: "22"
+  BUN_VERSION: "latest"
+
+jobs:
+  # ===========================================
+  # Deploy to Production - النشر للإنتاج
+  # ===========================================
+  deploy:
+    name: Deploy to Cloudflare
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      deployments: write
+
+    steps:
+      - name: Checkout code | استنساخ الكود
+        uses: actions/checkout@v4
+
+      - name: Setup Bun | إعداد Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION || 'latest' }}
+
+      - name: Install dependencies | تثبيت التبعيات
+        run: bun install --frozen-lockfile
+
+      - name: Build project | بناء المشروع
+        run: bun run build
+
+      - name: Deploy to Cloudflare Pages | النشر على Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy dist --project-name=my-resume-app
+
+      # Alternative: Deploy Worker
+      # - name: Deploy Worker | نشر العامل
+      #   uses: cloudflare/wrangler-action@v3
+      #   with:
+      #     apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      #     accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      #     command: deploy

@@ -1,0 +1,12 @@
+{
+  "*.{vue,ts,tsx}": [
+    "eslint --fix --max-warnings=0",
+    "prettier --write"
+  ],
+  "*.{css,json,md}": [
+    "prettier --write"
+  ],
+  "*.vue": [
+    "sh -c 'grep -l \"<style\" \"$@\" && echo \"❌ Style blocks found in Vue files! Use Tailwind classes instead.\" && exit 1 || exit 0' _"
+  ]
+}

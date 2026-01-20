@@ -1,35 +1,149 @@
-@import './base.css';
+@import "tailwindcss";
 
-#app {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  font-weight: normal;
+@plugin "daisyui" {
+  themes: light --default, dark --prefersdark, cupcake, emerald, corporate, forest, lofi, pastel, wireframe, nord, sunset;
+  logs: false;
 }
 
-a,
-.green {
-  text-decoration: none;
-  color: hsla(160, 100%, 37%, 1);
-  transition: 0.4s;
-  padding: 3px;
+/* Custom theme for resume app */
+@plugin "daisyui/theme" {
+  name: "resumelight";
+  default: false;
+  color-scheme: light;
+
+  --color-base-100: oklch(98% 0.01 240);
+  --color-base-200: oklch(96% 0.01 240);
+  --color-base-300: oklch(92% 0.02 240);
+  --color-base-content: oklch(25% 0.02 240);
+  --color-primary: oklch(55% 0.25 250);
+  --color-primary-content: oklch(98% 0.01 250);
+  --color-secondary: oklch(60% 0.2 280);
+  --color-secondary-content: oklch(98% 0.01 280);
+  --color-accent: oklch(70% 0.2 180);
+  --color-accent-content: oklch(98% 0.01 180);
+  --color-neutral: oklch(40% 0.02 240);
+  --color-neutral-content: oklch(98% 0.01 240);
+  --color-info: oklch(70% 0.2 220);
+  --color-info-content: oklch(98% 0.01 220);
+  --color-success: oklch(65% 0.2 145);
+  --color-success-content: oklch(98% 0.01 145);
+  --color-warning: oklch(80% 0.2 85);
+  --color-warning-content: oklch(25% 0.05 85);
+  --color-error: oklch(60% 0.25 25);
+  --color-error-content: oklch(98% 0.01 25);
+
+  --radius-selector: 0.5rem;
+  --radius-field: 0.5rem;
+  --radius-box: 0.75rem;
+
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
+
+  --border: 1px;
+  --depth: 1;
+  --noise: 0;
 }
 
-@media (hover: hover) {
-  a:hover {
-    background-color: hsla(160, 100%, 37%, 0.2);
+/* Print styles for resume export */
+@media print {
+  /* Hide everything except resume preview */
+  body > *:not(.resume-print-only) {
+    display: none !important;
   }
-}
 
-@media (min-width: 1024px) {
   body {
-    display: flex;
-    place-items: center;
+    background: white !important;
+    margin: 0 !important;
+    padding: 0 !important;
   }
 
-  #app {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    padding: 0 2rem;
+  /* Show and position resume preview */
+  .resume-preview,
+  .resume-preview * {
+    visibility: visible !important;
   }
+
+  .resume-preview {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    max-width: 210mm !important;
+    margin: 0 auto !important;
+    padding: 10mm !important;
+    background: white !important;
+    box-shadow: none !important;
+  }
+
+  /* Hide non-print elements */
+  button,
+  nav,
+  header,
+  footer,
+  .no-print,
+  .navbar,
+  .drawer,
+  .sidebar,
+  .toast,
+  .modal {
+    display: none !important;
+  }
+
+  /* Page settings */
+  @page {
+    margin: 10mm;
+    size: A4 portrait;
+  }
+
+  /* Ensure colors print correctly */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
+  /* Avoid breaking inside elements */
+  section,
+  article,
+  .card,
+  .work-experience-item,
+  .education-item,
+  .project-item {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* Headings should not be orphaned */
+  h1, h2, h3, h4, h5, h6 {
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
+  /* Links should be visible */
+  a {
+    color: #2563eb !important;
+    text-decoration: none !important;
+  }
+
+  /* Ensure text is readable */
+  p, li, span, div {
+    color: #111827 !important;
+  }
+
+  .text-gray-500, .text-gray-600 {
+    color: #4b5563 !important;
+  }
+
+  .text-gray-400 {
+    color: #6b7280 !important;
+  }
+}
+
+/* RTL support */
+[dir="rtl"] {
+  direction: rtl;
+}
+
+[dir="ltr"] {
+  direction: ltr;
 }

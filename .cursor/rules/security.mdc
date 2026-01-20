@@ -1,0 +1,303 @@
+# Security Guidelines
+
+## Environment Variables
+
+### Never Expose Secrets
+
+```typescript
+// ❌ FORBIDDEN - Hardcoded secrets
+const API_KEY = 'sk-1234567890'
+const DB_PASSWORD = 'password123'
+
+// ✅ CORRECT - Use environment variables
+const API_KEY = import.meta.env.VITE_API_KEY
+
+// Note: Only VITE_ prefixed vars are exposed to client
+// Server-side secrets should NEVER have VITE_ prefix
+```
+
+### Environment Variable Files
+
+```bash
+# .env.local - Local development (gitignored)
+VITE_FIREBASE_API_KEY=your-api-key
+VITE_FIREBASE_PROJECT_ID=your-project-id
+
+# .env.example - Template (committed)
+VITE_FIREBASE_API_KEY=
+VITE_FIREBASE_PROJECT_ID=
+
+# Server-side secrets (in Cloudflare Workers)
+# Set via wrangler secret put SECRET_NAME
+```
+
+### Type Safety for Env Variables
+
+```typescript
+// env.d.ts
+/// <reference types="vite/client" />
+
+interface ImportMetaEnv {
+  readonly VITE_FIREBASE_API_KEY: string
+  readonly VITE_FIREBASE_AUTH_DOMAIN: string
+  readonly VITE_FIREBASE_PROJECT_ID: string
+  readonly VITE_API_URL: string
+}
+
+interface ImportMeta {
+  readonly env: ImportMetaEnv
+}
+```
+
+## Input Validation
+
+### Client-Side Validation
+
+```typescript
+import { required, email, minLength, compose } from '@/utils/validation'
+
+const emailValidator = compose(
+  required('Email is required'),
+  email('Invalid email address')
+)
+
+const passwordValidator = compose(
+  required('Password is required'),
+  minLength(8, 'Password must be at least 8 characters')
+)
+
+// Usage
+const emailError = emailValidator(userInput.email)
+const passwordError = passwordValidator(userInput.password)
+```
+
+### Always Validate on Server Too
+
+```typescript
+// server/routes/users.ts
+import { z } from 'zod'
+
+const createUserSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(8).max(128),
+  name: z.string().min(1).max(100)
+})
+
+export async function createUser(request: Request) {
+  const body = await request.json()
+
+  // Validate before processing
+  const result = createUserSchema.safeParse(body)
+  if (!result.success) {
+    return new Response(JSON.stringify({ errors: result.error.issues }), {
+      status: 400
+    })
+  }
+
+  // Proceed with validated data
+  const { email, password, name } = result.data
+}
+```
+
+## XSS Prevention
+
+### Avoid v-html with User Data
+
+```vue
+<!-- ❌ DANGEROUS - User content could contain scripts -->
+<div v-html="userContent" />
+
+<!-- ✅ SAFE - Text is escaped -->
+<div>{{ userContent }}</div>
+
+<!-- ✅ IF v-html needed, sanitize first -->
+<script setup lang="ts">
+import DOMPurify from 'dompurify'
+
+const sanitizedContent = computed(() =>
+  DOMPurify.sanitize(userContent.value)
+)
+</script>
+
+<template>
+  <div v-html="sanitizedContent" />
+</template>
+```
+
+### Safe URL Handling
+
+```typescript
+// ✅ CORRECT - Validate URLs before use
+function isValidUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url)
+    return ['http:', 'https:'].includes(parsed.protocol)
+  } catch {
+    return false
+  }
+}
+
+// In template
+<a v-if="isValidUrl(link)" :href="link">{{ link }}</a>
+
+// ❌ DANGEROUS - Never use javascript: URLs
+<a :href="userProvidedUrl">Click</a> // Could be javascript:alert(1)
+```
+
+## Authentication Security
+
+### Secure Token Storage
+
+```typescript
+// ✅ CORRECT - Use httpOnly cookies for sensitive tokens
+// Set via server response header
+
+// For client-side tokens (less sensitive)
+// Use sessionStorage over localStorage when possible
+const token = sessionStorage.getItem('token')
+
+// ❌ AVOID - localStorage is accessible to XSS attacks
+localStorage.setItem('authToken', sensitiveToken)
+```
+
+### Auth State Management
+
+```typescript
+// Always verify auth state on protected routes
+// router/guards.ts
+export function authGuard(to: RouteLocationNormalized) {
+  const authStore = useAuthStore()
+
+  if (to.meta.requiresAuth && !authStore.isAuthenticated) {
+    return { name: 'login', query: { redirect: to.fullPath } }
+  }
+
+  if (to.meta.requiresGuest && authStore.isAuthenticated) {
+    return { name: 'dashboard' }
+  }
+}
+```
+
+## Firestore Security Rules
+
+```javascript
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    function isValidResume() {
+      let data = request.resource.data;
+      return data.title is string &&
+             data.title.size() <= 200 &&
+             data.userId == request.auth.uid;
+    }
+
+    // Resumes - users can only access their own
+    match /resumes/{resumeId} {
+      allow read: if isAuthenticated() &&
+                     isOwner(resource.data.userId);
+      allow create: if isAuthenticated() &&
+                       isValidResume();
+      allow update: if isAuthenticated() &&
+                       isOwner(resource.data.userId) &&
+                       isValidResume();
+      allow delete: if isAuthenticated() &&
+                       isOwner(resource.data.userId);
+    }
+
+    // Public resumes (published only)
+    match /publicResumes/{resumeId} {
+      allow read: if true;
+      allow write: if false; // Only via Cloud Functions
+    }
+
+    // User profiles
+    match /users/{userId} {
+      allow read, write: if isAuthenticated() && isOwner(userId);
+    }
+  }
+}
+```
+
+## Rate Limiting
+
+```typescript
+// Simple client-side rate limiting
+const rateLimiter = {
+  attempts: new Map<string, number[]>(),
+
+  isAllowed(key: string, maxAttempts: number, windowMs: number): boolean {
+    const now = Date.now()
+    const attempts = this.attempts.get(key) || []
+
+    // Remove old attempts
+    const recentAttempts = attempts.filter(t => now - t < windowMs)
+
+    if (recentAttempts.length >= maxAttempts) {
+      return false
+    }
+
+    recentAttempts.push(now)
+    this.attempts.set(key, recentAttempts)
+    return true
+  }
+}
+
+// Usage
+async function login(email: string, password: string) {
+  if (!rateLimiter.isAllowed(`login:${email}`, 5, 60000)) {
+    throw new Error('Too many attempts. Try again later.')
+  }
+  // Proceed with login
+}
+```
+
+## Content Security Policy
+
+```html
+<!-- index.html -->
+<meta http-equiv="Content-Security-Policy" content="
+  default-src 'self';
+  script-src 'self' https://apis.google.com;
+  style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+  font-src 'self' https://fonts.gstatic.com;
+  img-src 'self' data: https:;
+  connect-src 'self' https://*.firebaseio.com https://*.googleapis.com;
+">
+```
+
+## Dependency Security
+
+```bash
+# Regular security audits
+bun audit
+
+# Update dependencies
+bun update
+
+# Check for known vulnerabilities
+npm audit --audit-level=high
+```
+
+## Security Checklist
+
+- [ ] No hardcoded secrets in code
+- [ ] All env variables are properly typed
+- [ ] User input is validated on client AND server
+- [ ] No v-html with unsanitized user content
+- [ ] URLs are validated before use
+- [ ] Auth tokens are stored securely
+- [ ] Firestore rules properly restrict access
+- [ ] Rate limiting is implemented
+- [ ] Dependencies are regularly audited
+- [ ] CSP headers are configured
+- [ ] HTTPS is enforced
+- [ ] Sensitive actions require re-authentication

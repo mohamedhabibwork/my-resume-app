@@ -1,0 +1,94 @@
+# CI/CD Pipeline - خط أنابيب التكامل المستمر
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+env:
+  NODE_VERSION: "22"
+  BUN_VERSION: "latest"
+
+jobs:
+  # ===========================================
+  # Lint & Type Check - فحص الكود والأنواع
+  # ===========================================
+  lint:
+    name: Lint & Type Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code | استنساخ الكود
+        uses: actions/checkout@v4
+
+      - name: Setup Bun | إعداد Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: Install dependencies | تثبيت التبعيات
+        run: bun install --frozen-lockfile
+
+      - name: Run ESLint | تشغيل ESLint
+        run: bun run lint
+
+      - name: Run Type Check | فحص الأنواع
+        run: bun run type-check
+
+      - name: Check formatting | فحص التنسيق
+        run: bun run format:check
+
+  # ===========================================
+  # Build - البناء
+  # ===========================================
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    needs: lint
+
+    steps:
+      - name: Checkout code | استنساخ الكود
+        uses: actions/checkout@v4
+
+      - name: Setup Bun | إعداد Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: Install dependencies | تثبيت التبعيات
+        run: bun install --frozen-lockfile
+
+      - name: Build project | بناء المشروع
+        run: bun run build
+
+      - name: Upload build artifacts | رفع ملفات البناء
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+          retention-days: 7
+
+  # ===========================================
+  # Security Audit - فحص الأمان
+  # ===========================================
+  security:
+    name: Security Audit
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code | استنساخ الكود
+        uses: actions/checkout@v4
+
+      - name: Setup Bun | إعداد Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: Install dependencies | تثبيت التبعيات
+        run: bun install --frozen-lockfile
+
+      - name: Run security audit | فحص الثغرات الأمنية
+        run: bun audit || true
+        continue-on-error: true

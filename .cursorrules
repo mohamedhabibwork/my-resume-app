@@ -1,0 +1,232 @@
+# My Resume App - Cursor Rules & Best Practices
+
+> **Detailed rules are in `.cursor/rules/` directory**
+> See individual `.mdc` files for comprehensive guidelines on each topic.
+
+## Project Overview
+
+A Vue 3 + TypeScript resume builder application with:
+
+| Layer | Technology |
+|-------|------------|
+| Frontend | Vue 3 (Composition API), TypeScript, Tailwind CSS 4, Pinia |
+| Backend | Cloudflare Workers |
+| Database | Firebase (Firestore + Auth) |
+| Build | Vite 7, Bun, Cloudflare Pages |
+| i18n | English + Arabic (RTL) |
+
+---
+
+## Quick Reference Rules
+
+### 1. Vue Components
+
+```vue
+<script setup lang="ts">
+// 1. Type imports
+import type { Resume } from '@/types'
+
+// 2. Regular imports
+import { ref, computed } from 'vue'
+import { useI18n } from '@/i18n'
+
+// 3. Props/Emits
+interface Props { title: string }
+const props = defineProps<Props>()
+const emit = defineEmits<{ update: [value: string] }>()
+
+// 4. Composables
+const { t } = useI18n()
+
+// 5. State
+const value = ref('')
+
+// 6. Computed
+const display = computed(() => props.title.toUpperCase())
+
+// 7. Methods
+function handleClick() { emit('update', value.value) }
+</script>
+
+<template>
+  <div class="p-4">{{ t('common.save') }}</div>
+</template>
+<!-- NO <style> block - use Tailwind classes -->
+```
+
+### 2. TypeScript
+
+```typescript
+// ✅ Use interfaces for objects
+interface User { id: string; name: string }
+
+// ✅ Use type for unions
+type Status = 'draft' | 'published' | 'archived'
+
+// ✅ Const objects over enums
+const SKILL_LEVELS = { BEGINNER: 'beginner', EXPERT: 'expert' } as const
+type SkillLevel = typeof SKILL_LEVELS[keyof typeof SKILL_LEVELS]
+
+// ❌ Never use `any`
+```
+
+### 3. CSS Rules (CRITICAL)
+
+```vue
+<!-- ❌ FORBIDDEN -->
+<style scoped>.btn { color: red }</style>
+<div style="color: red">
+
+<!-- ✅ CORRECT -->
+<div class="text-red-500 p-4 hover:bg-gray-100">
+```
+
+**All CSS goes in `src/assets/main.css` only**
+
+### 4. Internationalization
+
+```vue
+<!-- ❌ FORBIDDEN - Hardcoded strings -->
+<button>Save</button>
+
+<!-- ✅ CORRECT - Use translations -->
+<button>{{ t('common.save') }}</button>
+```
+
+Add translations to BOTH `src/i18n/en.ts` AND `src/i18n/ar.ts`
+
+### 5. Async Operations
+
+```typescript
+// ✅ Always handle loading/error states
+const isLoading = ref(false)
+const error = ref<string | null>(null)
+
+async function fetchData() {
+  isLoading.value = true
+  error.value = null
+  try {
+    // API call
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : 'Error'
+  } finally {
+    isLoading.value = false
+  }
+}
+```
+
+---
+
+## File Structure
+
+```
+src/
+├── assets/main.css     # ALL CSS goes here
+├── components/
+│   ├── ui/             # Button, Input, Card, Modal
+│   ├── layout/         # AppHeader, AppLayout
+│   ├── auth/           # LoginForm, SignupForm
+│   └── resume/         # ResumePreview, EducationForm
+├── composables/        # useApi, useDebounce, useAuth
+├── i18n/               # en.ts, ar.ts
+├── router/             # index.ts, guards.ts
+├── stores/             # useAuthStore, useResumeStore
+├── types/              # index.ts, fonts.ts, themes.ts
+├── utils/              # format.ts, validation.ts, helpers.ts
+└── views/              # Page components
+
+server/                 # Cloudflare Worker backend
+.cursor/rules/          # Detailed Cursor rules
+```
+
+---
+
+## Commands
+
+```bash
+# Development
+bun run dev           # Start dev server
+bun run build         # Build for production
+bun run preview       # Preview build
+
+# Quality
+bun run lint          # Check linting
+bun run lint:fix      # Fix lint errors
+bun run format        # Format code
+bun run type-check    # Check types
+bun run check         # Run all checks
+
+# Deploy
+bun run deploy        # Deploy to Cloudflare
+```
+
+---
+
+## Git Commits
+
+Format: `type(scope): message`
+
+```bash
+feat(resume): add drag-and-drop for skills
+fix(auth): handle expired token error
+docs: update README
+refactor(stores): simplify resume actions
+test(utils): add format tests
+chore: update dependencies
+```
+
+Types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`, `perf`, `ci`, `build`, `revert`
+
+---
+
+## Naming Conventions
+
+| Type | Pattern | Example |
+|------|---------|---------|
+| Components | PascalCase.vue | `ResumeCard.vue` |
+| Views | PascalCaseView.vue | `DashboardView.vue` |
+| Composables | useCamelCase.ts | `useResume.ts` |
+| Stores | useCamelCaseStore.ts | `useResumeStore.ts` |
+| Utils | camelCase.ts | `format.ts` |
+| Types | PascalCase | `interface Resume` |
+
+---
+
+## Do's and Don'ts
+
+### ✅ DO:
+- Use `<script setup lang="ts">`
+- Define TypeScript interfaces
+- Handle loading/error states
+- Use Pinia for global state
+- Use composables for reusable logic
+- Use Tailwind classes for styling
+- Translate all user-facing text
+
+### ❌ DON'T:
+- Use `any` type
+- Add `<style>` blocks in components
+- Use inline styles
+- Hardcode strings (use i18n)
+- Mutate props directly
+- Use Options API
+- Commit console.log
+
+---
+
+## Detailed Rules
+
+See `.cursor/rules/` for comprehensive guidelines:
+
+- `vue-components.mdc` - Component patterns
+- `typescript.mdc` - Type definitions
+- `pinia-stores.mdc` - State management
+- `composables.mdc` - Composable patterns
+- `tailwind-css.mdc` - CSS/styling rules
+- `i18n.mdc` - Internationalization
+- `firebase.mdc` - Firebase integration
+- `api.mdc` - Data fetching patterns
+- `testing.mdc` - Testing guidelines
+- `performance.mdc` - Optimization
+- `security.mdc` - Security best practices
+- `commands.mdc` - Available commands

@@ -1,0 +1,60 @@
+#!/bin/sh
+# Pre-push hook - التحقق قبل الدفع
+
+echo "🚀 Running pre-push checks..."
+echo "🚀 جاري فحص الكود قبل الدفع..."
+
+# Run type check
+echo ""
+echo "📝 Running TypeScript type check..."
+echo "📝 جاري فحص أنواع TypeScript..."
+bun run type-check
+
+if [ $? -ne 0 ]; then
+  echo ""
+  echo "❌ TypeScript type check failed!"
+  echo "❌ فشل فحص أنواع TypeScript!"
+  echo ""
+  echo "EN: Please fix type errors before pushing."
+  echo "AR: يرجى إصلاح أخطاء الأنواع قبل الدفع."
+  exit 1
+fi
+
+# Run linter
+echo ""
+echo "🔍 Running ESLint..."
+echo "🔍 جاري تشغيل ESLint..."
+bun run lint
+
+if [ $? -ne 0 ]; then
+  echo ""
+  echo "❌ ESLint check failed!"
+  echo "❌ فشل فحص ESLint!"
+  echo ""
+  echo "EN: Please fix linting errors before pushing."
+  echo "AR: يرجى إصلاح أخطاء التنسيق قبل الدفع."
+  exit 1
+fi
+
+# Run build to ensure it compiles
+echo ""
+echo "🏗️ Running build check..."
+echo "🏗️ جاري فحص البناء..."
+bun run build-only
+
+if [ $? -ne 0 ]; then
+  echo ""
+  echo "❌ Build failed!"
+  echo "❌ فشل البناء!"
+  echo ""
+  echo "EN: Please fix build errors before pushing."
+  echo "AR: يرجى إصلاح أخطاء البناء قبل الدفع."
+  exit 1
+fi
+
+echo ""
+echo "✅ All pre-push checks passed!"
+echo "✅ نجحت جميع فحوصات ما قبل الدفع!"
+echo ""
+echo "🚀 Pushing to remote..."
+echo "🚀 جاري الدفع إلى المستودع البعيد..."

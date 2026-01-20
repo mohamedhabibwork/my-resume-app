@@ -1,0 +1,261 @@
+# Available Commands & Workflows
+
+## Development Commands
+
+### Start Development Server
+
+```bash
+bun run dev
+```
+Starts Vite dev server with hot module replacement at `http://localhost:5173`
+
+### Build for Production
+
+```bash
+bun run build
+```
+Runs type-check and builds optimized production bundle to `dist/`
+
+### Preview Production Build
+
+```bash
+bun run preview
+```
+Builds and serves the production build using Cloudflare Wrangler
+
+### Deploy to Cloudflare
+
+```bash
+bun run deploy
+```
+Builds and deploys to Cloudflare Pages/Workers
+
+## Code Quality Commands
+
+### Run Linter
+
+```bash
+bun run lint        # Check for errors
+bun run lint:fix    # Auto-fix errors
+```
+
+### Format Code
+
+```bash
+bun run format        # Format all files
+bun run format:check  # Check formatting without changing
+```
+
+### Type Check
+
+```bash
+bun run type-check
+```
+Runs `vue-tsc` to check TypeScript types
+
+### Run All Checks
+
+```bash
+bun run check
+```
+Runs type-check, lint:fix, and format in parallel
+
+## Cloudflare Commands
+
+### Generate Types
+
+```bash
+bun run cf-typegen
+```
+Generates TypeScript types for Cloudflare Workers environment
+
+## Git Hooks (Husky)
+
+### Pre-commit Hook
+Automatically runs on every commit:
+- `lint-staged` - Lints and formats staged files
+
+### Commit Message Hook
+Validates commit message format:
+- Must match: `type(scope): message`
+- Types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`, `perf`, `ci`, `build`, `revert`
+
+## Commit Message Examples
+
+```bash
+# Features
+git commit -m "feat(resume): add skills section drag and drop"
+git commit -m "feat(auth): implement forgot password flow"
+
+# Bug Fixes
+git commit -m "fix(export): handle PDF generation errors"
+git commit -m "fix(i18n): correct Arabic RTL alignment"
+
+# Documentation
+git commit -m "docs: update README with setup instructions"
+git commit -m "docs(api): add JSDoc comments to composables"
+
+# Code Style
+git commit -m "style: format files with prettier"
+git commit -m "style(resume): improve form layout spacing"
+
+# Refactoring
+git commit -m "refactor(stores): simplify resume store actions"
+git commit -m "refactor: extract shared validation logic"
+
+# Tests
+git commit -m "test(utils): add format utility tests"
+git commit -m "test(components): add Button component tests"
+
+# Maintenance
+git commit -m "chore: update dependencies"
+git commit -m "chore(ci): add caching to workflows"
+
+# Performance
+git commit -m "perf(list): implement virtual scrolling"
+git commit -m "perf: lazy load dashboard components"
+
+# CI/CD
+git commit -m "ci: add PR validation workflow"
+git commit -m "ci(deploy): configure preview deployments"
+
+# Build
+git commit -m "build: update vite configuration"
+git commit -m "build(deps): upgrade tailwindcss to v4"
+```
+
+## Development Workflows
+
+### Starting Fresh Development
+
+```bash
+# 1. Install dependencies
+bun install
+
+# 2. Start dev server
+bun run dev
+
+# 3. Open browser at http://localhost:5173
+```
+
+### Before Committing
+
+```bash
+# 1. Run all checks
+bun run check
+
+# 2. Stage changes
+git add .
+
+# 3. Commit (hooks will validate)
+git commit -m "feat(feature): description"
+```
+
+### Creating a New Component
+
+1. Create file in appropriate directory:
+   - UI components: `src/components/ui/`
+   - Layout: `src/components/layout/`
+   - Resume: `src/components/resume/`
+   - Auth: `src/components/auth/`
+
+2. Follow component template (see `vue-components.mdc`)
+
+3. Add translations to `src/i18n/en.ts` and `src/i18n/ar.ts`
+
+4. Export if needed from barrel file
+
+### Creating a New Store
+
+1. Create file: `src/stores/useExampleStore.ts`
+2. Follow store template (see `pinia-stores.mdc`)
+3. Export from `src/stores/index.ts`
+
+### Creating a New Composable
+
+1. Create file: `src/composables/useExample.ts`
+2. Follow composable template (see `composables.mdc`)
+3. Export from `src/composables/index.ts`
+
+### Adding a New Route
+
+1. Add route to `src/router/index.ts`:
+```typescript
+{
+  path: '/new-page',
+  name: 'new-page',
+  component: () => import('@/views/NewPageView.vue'),
+  meta: { requiresAuth: true } // if auth required
+}
+```
+
+2. Create view component: `src/views/NewPageView.vue`
+
+3. Add navigation if needed in `AppHeader.vue`
+
+### Adding Translations
+
+1. Add to `src/i18n/en.ts`:
+```typescript
+newFeature: {
+  title: 'New Feature',
+  description: 'Feature description'
+}
+```
+
+2. Add to `src/i18n/ar.ts`:
+```typescript
+newFeature: {
+  title: 'ميزة جديدة',
+  description: 'وصف الميزة'
+}
+```
+
+3. Use in component:
+```vue
+<h1>{{ t('newFeature.title') }}</h1>
+```
+
+## Firebase Commands (Manual)
+
+```bash
+# Deploy Firestore rules
+firebase deploy --only firestore:rules
+
+# Deploy indexes
+firebase deploy --only firestore:indexes
+
+# Run emulators locally
+firebase emulators:start
+```
+
+## Troubleshooting Commands
+
+```bash
+# Clear cache and reinstall
+rm -rf node_modules bun.lock
+bun install
+
+# Clear Vite cache
+rm -rf node_modules/.vite
+
+# Check for type errors in specific file
+npx vue-tsc --noEmit src/components/MyComponent.vue
+
+# Analyze bundle size
+bun run build -- --report
+```
+
+## Quick Reference
+
+| Command | Description |
+|---------|-------------|
+| `bun run dev` | Start dev server |
+| `bun run build` | Build for production |
+| `bun run preview` | Preview production build |
+| `bun run deploy` | Deploy to Cloudflare |
+| `bun run lint` | Check linting |
+| `bun run lint:fix` | Fix lint errors |
+| `bun run format` | Format code |
+| `bun run type-check` | Check TypeScript |
+| `bun run check` | Run all checks |

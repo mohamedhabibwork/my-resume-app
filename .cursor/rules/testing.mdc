@@ -1,0 +1,457 @@
+# Testing Guidelines
+
+## Testing Philosophy
+
+- Write unit tests for utilities and composables
+- Write component tests for complex components
+- Focus on behavior, not implementation
+- Test edge cases and error states
+
+## Test File Structure
+
+```
+src/
+├── composables/
+│   ├── useDebounce.ts
+│   └── __tests__/
+│       └── useDebounce.test.ts
+├── utils/
+│   ├── format.ts
+│   └── __tests__/
+│       └── format.test.ts
+└── components/
+    ├── ui/
+    │   ├── Button.vue
+    │   └── __tests__/
+    │       └── Button.test.ts
+```
+
+## Unit Testing Utilities
+
+```typescript
+// utils/__tests__/format.test.ts
+import { describe, it, expect } from 'vitest'
+import { formatDate, capitalize, truncate, slugify } from '../format'
+
+describe('formatDate', () => {
+  it('formats date correctly', () => {
+    const date = new Date('2024-01-15')
+    expect(formatDate(date)).toBe('January 15, 2024')
+  })
+
+  it('handles invalid date', () => {
+    expect(formatDate(null)).toBe('')
+    expect(formatDate(undefined)).toBe('')
+  })
+
+  it('supports custom format options', () => {
+    const date = new Date('2024-01-15')
+    expect(formatDate(date, { month: 'short' })).toBe('Jan 15, 2024')
+  })
+})
+
+describe('capitalize', () => {
+  it('capitalizes first letter', () => {
+    expect(capitalize('hello')).toBe('Hello')
+  })
+
+  it('handles empty string', () => {
+    expect(capitalize('')).toBe('')
+  })
+
+  it('handles all caps', () => {
+    expect(capitalize('HELLO')).toBe('Hello')
+  })
+})
+
+describe('truncate', () => {
+  it('truncates long strings', () => {
+    expect(truncate('Hello World', 5)).toBe('Hello...')
+  })
+
+  it('does not truncate short strings', () => {
+    expect(truncate('Hi', 10)).toBe('Hi')
+  })
+
+  it('handles exact length', () => {
+    expect(truncate('Hello', 5)).toBe('Hello')
+  })
+})
+
+describe('slugify', () => {
+  it('converts to slug', () => {
+    expect(slugify('Hello World')).toBe('hello-world')
+  })
+
+  it('handles special characters', () => {
+    expect(slugify('Hello & World!')).toBe('hello-world')
+  })
+
+  it('handles multiple spaces', () => {
+    expect(slugify('Hello    World')).toBe('hello-world')
+  })
+})
+```
+
+## Unit Testing Composables
+
+```typescript
+// composables/__tests__/useDebounce.test.ts
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { ref, nextTick } from 'vue'
+import { useDebounce, useDebounceFn } from '../useDebounce'
+
+describe('useDebounce', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('debounces value changes', async () => {
+    const source = ref('initial')
+    const debounced = useDebounce(source, 300)
+
+    expect(debounced.value).toBe('initial')
+
+    source.value = 'updated'
+    await nextTick()
+    expect(debounced.value).toBe('initial') // Not updated yet
+
+    vi.advanceTimersByTime(300)
+    await nextTick()
+    expect(debounced.value).toBe('updated') // Now updated
+  })
+
+  it('cancels previous debounce on rapid changes', async () => {
+    const source = ref('a')
+    const debounced = useDebounce(source, 300)
+
+    source.value = 'b'
+    vi.advanceTimersByTime(100)
+    source.value = 'c'
+    vi.advanceTimersByTime(100)
+    source.value = 'd'
+    vi.advanceTimersByTime(300)
+
+    await nextTick()
+    expect(debounced.value).toBe('d')
+  })
+})
+
+describe('useDebounceFn', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('debounces function calls', async () => {
+    const callback = vi.fn()
+    const debouncedFn = useDebounceFn(callback, 300)
+
+    debouncedFn('arg1')
+    debouncedFn('arg2')
+    debouncedFn('arg3')
+
+    expect(callback).not.toHaveBeenCalled()
+
+    vi.advanceTimersByTime(300)
+    expect(callback).toHaveBeenCalledTimes(1)
+    expect(callback).toHaveBeenCalledWith('arg3')
+  })
+})
+```
+
+## Component Testing
+
+```typescript
+// components/ui/__tests__/Button.test.ts
+import { describe, it, expect, vi } from 'vitest'
+import { mount } from '@vue/test-utils'
+import Button from '../Button.vue'
+
+describe('Button', () => {
+  it('renders slot content', () => {
+    const wrapper = mount(Button, {
+      slots: {
+        default: 'Click me'
+      }
+    })
+    expect(wrapper.text()).toBe('Click me')
+  })
+
+  it('applies variant classes', () => {
+    const wrapper = mount(Button, {
+      props: { variant: 'primary' }
+    })
+    expect(wrapper.classes()).toContain('bg-blue-600')
+  })
+
+  it('applies size classes', () => {
+    const wrapper = mount(Button, {
+      props: { size: 'lg' }
+    })
+    expect(wrapper.classes()).toContain('px-6')
+    expect(wrapper.classes()).toContain('py-3')
+  })
+
+  it('emits click event', async () => {
+    const wrapper = mount(Button)
+    await wrapper.trigger('click')
+    expect(wrapper.emitted('click')).toBeTruthy()
+  })
+
+  it('is disabled when disabled prop is true', () => {
+    const wrapper = mount(Button, {
+      props: { disabled: true }
+    })
+    expect(wrapper.attributes('disabled')).toBeDefined()
+  })
+
+  it('shows loading spinner when loading', () => {
+    const wrapper = mount(Button, {
+      props: { loading: true }
+    })
+    expect(wrapper.find('[data-testid="spinner"]').exists()).toBe(true)
+  })
+
+  it('does not emit click when disabled', async () => {
+    const wrapper = mount(Button, {
+      props: { disabled: true }
+    })
+    await wrapper.trigger('click')
+    expect(wrapper.emitted('click')).toBeFalsy()
+  })
+})
+```
+
+## Testing with Pinia Stores
+
+```typescript
+// components/__tests__/ResumeList.test.ts
+import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { mount } from '@vue/test-utils'
+import { createTestingPinia } from '@pinia/testing'
+import ResumeList from '../ResumeList.vue'
+import { useResumeStore } from '@/stores/useResumeStore'
+
+describe('ResumeList', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('displays loading state', () => {
+    const wrapper = mount(ResumeList, {
+      global: {
+        plugins: [
+          createTestingPinia({
+            initialState: {
+              resume: { isLoading: true, resumes: [] }
+            }
+          })
+        ]
+      }
+    })
+    expect(wrapper.find('[data-testid="loading"]').exists()).toBe(true)
+  })
+
+  it('displays resumes', () => {
+    const wrapper = mount(ResumeList, {
+      global: {
+        plugins: [
+          createTestingPinia({
+            initialState: {
+              resume: {
+                isLoading: false,
+                resumes: [
+                  { id: '1', title: 'Resume 1' },
+                  { id: '2', title: 'Resume 2' }
+                ]
+              }
+            }
+          })
+        ]
+      }
+    })
+    expect(wrapper.findAll('[data-testid="resume-card"]')).toHaveLength(2)
+  })
+
+  it('displays empty state', () => {
+    const wrapper = mount(ResumeList, {
+      global: {
+        plugins: [
+          createTestingPinia({
+            initialState: {
+              resume: { isLoading: false, resumes: [] }
+            }
+          })
+        ]
+      }
+    })
+    expect(wrapper.find('[data-testid="empty-state"]').exists()).toBe(true)
+  })
+
+  it('calls fetchResumes on mount', () => {
+    const wrapper = mount(ResumeList, {
+      global: {
+        plugins: [createTestingPinia({ stubActions: false })]
+      }
+    })
+    const store = useResumeStore()
+    expect(store.fetchResumes).toHaveBeenCalled()
+  })
+})
+```
+
+## Testing Async Operations
+
+```typescript
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { flushPromises, mount } from '@vue/test-utils'
+
+describe('UserProfile', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('loads and displays user data', async () => {
+    const mockUser = { id: '1', name: 'John Doe' }
+
+    vi.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => mockUser
+    } as Response)
+
+    const wrapper = mount(UserProfile)
+
+    // Wait for async operations
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('John Doe')
+  })
+
+  it('handles fetch error', async () => {
+    vi.spyOn(global, 'fetch').mockRejectedValue(new Error('Network error'))
+
+    const wrapper = mount(UserProfile)
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="error"]').exists()).toBe(true)
+  })
+})
+```
+
+## Mocking
+
+```typescript
+// Mock modules
+vi.mock('@/config/firebase', () => ({
+  auth: { currentUser: { uid: 'test-user-id' } },
+  db: {}
+}))
+
+// Mock functions
+const mockFetch = vi.fn()
+global.fetch = mockFetch
+
+// Mock composables
+vi.mock('@/composables/useAuth', () => ({
+  useAuth: () => ({
+    user: ref({ id: '1', name: 'Test User' }),
+    isAuthenticated: ref(true),
+    login: vi.fn(),
+    logout: vi.fn()
+  })
+}))
+```
+
+## Test Naming Conventions
+
+```typescript
+describe('ComponentName', () => {
+  // Group by feature or behavior
+  describe('rendering', () => {
+    it('renders default state correctly', () => {})
+    it('renders loading state', () => {})
+    it('renders error state', () => {})
+  })
+
+  describe('interactions', () => {
+    it('calls handler on click', () => {})
+    it('emits event on form submit', () => {})
+  })
+
+  describe('props', () => {
+    it('applies variant prop correctly', () => {})
+    it('uses default value when prop not provided', () => {})
+  })
+})
+```
+
+## Running Tests
+
+```bash
+# Run all tests
+bun run test
+
+# Run tests in watch mode
+bun run test:watch
+
+# Run tests with coverage
+bun run test:coverage
+
+# Run specific test file
+bun run test src/utils/__tests__/format.test.ts
+```
+
+## Test Data Factories
+
+```typescript
+// tests/factories.ts
+import type { Resume, User, WorkExperience } from '@/types'
+
+export function createMockUser(overrides?: Partial<User>): User {
+  return {
+    id: 'user-1',
+    email: 'test@example.com',
+    name: 'Test User',
+    createdAt: new Date(),
+    ...overrides
+  }
+}
+
+export function createMockResume(overrides?: Partial<Resume>): Resume {
+  return {
+    id: 'resume-1',
+    title: 'Test Resume',
+    userId: 'user-1',
+    personalInfo: {
+      fullName: 'Test User',
+      email: 'test@example.com'
+    },
+    workExperience: [],
+    education: [],
+    skills: [],
+    ...overrides
+  }
+}
+
+export function createMockWorkExperience(
+  overrides?: Partial<WorkExperience>
+): WorkExperience {
+  return {
+    id: 'exp-1',
+    company: 'Test Company',
+    position: 'Test Position',
+    startDate: '2020-01',
+    endDate: '2023-01',
+    description: 'Test description',
+    ...overrides
+  }
+}
+```

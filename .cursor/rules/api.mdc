@@ -1,0 +1,319 @@
+# API & Data Fetching Rules
+
+## useApi Composable Pattern
+
+Always use the `useApi` composable for data fetching:
+
+```typescript
+import { useApi } from '@/composables'
+
+// GET request
+const { data, error, isLoading, execute } = useApi<User[]>()
+
+onMounted(async () => {
+  await execute('/api/users')
+})
+
+// In template
+<div v-if="isLoading">{{ t('common.loading') }}</div>
+<div v-else-if="error" class="text-red-500">{{ error }}</div>
+<div v-else>
+  <UserCard v-for="user in data" :key="user.id" :user="user" />
+</div>
+```
+
+## API Mutation Pattern
+
+```typescript
+import { useApiMutation } from '@/composables'
+
+// POST/PUT/DELETE request
+const { data, error, isLoading, execute } = useApiMutation<CreateUserInput, User>()
+
+async function createUser(userData: CreateUserInput) {
+  try {
+    await execute('/api/users', {
+      method: 'POST',
+      body: userData
+    })
+    showSuccess('User created!')
+  } catch (e) {
+    showError('Failed to create user')
+  }
+}
+```
+
+## Error Handling Pattern
+
+```typescript
+// ✅ CORRECT - Always handle errors
+async function fetchData() {
+  isLoading.value = true
+  error.value = null
+
+  try {
+    const response = await fetch('/api/data')
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+    }
+
+    data.value = await response.json()
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : 'Request failed'
+    console.error('Fetch error:', e)
+    throw e // Re-throw if caller needs to handle
+  } finally {
+    isLoading.value = false
+  }
+}
+
+// ❌ WRONG - No error handling
+async function fetchData() {
+  const response = await fetch('/api/data')
+  data.value = await response.json()
+}
+```
+
+## Request Configuration
+
+```typescript
+// Standard request with headers
+async function fetchWithAuth(url: string, options: RequestInit = {}) {
+  const token = getAuthToken()
+
+  const response = await fetch(url, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+      ...options.headers
+    }
+  })
+
+  if (!response.ok) {
+    if (response.status === 401) {
+      // Handle unauthorized
+      await logout()
+      throw new Error('Session expired')
+    }
+    throw new Error(`HTTP ${response.status}`)
+  }
+
+  return response.json()
+}
+```
+
+## Typed API Responses
+
+```typescript
+// Define response types
+interface ApiResponse<T> {
+  data: T
+  success: boolean
+  message?: string
+}
+
+interface PaginatedResponse<T> {
+  items: T[]
+  total: number
+  page: number
+  pageSize: number
+  hasMore: boolean
+}
+
+// Usage
+const { data } = useApi<ApiResponse<User>>()
+const { data: users } = useApi<PaginatedResponse<User>>()
+```
+
+## Retry Logic
+
+```typescript
+import { retry } from '@/utils'
+
+// Retry failed requests
+const result = await retry(
+  async () => {
+    const response = await fetch('/api/data')
+    if (!response.ok) throw new Error('Request failed')
+    return response.json()
+  },
+  {
+    attempts: 3,
+    delay: 1000,
+    backoff: true // Exponential backoff
+  }
+)
+```
+
+## Request Cancellation
+
+```typescript
+export function useCancellableApi<T>() {
+  const controller = ref<AbortController | null>(null)
+  const data = ref<T | null>(null)
+  const error = ref<string | null>(null)
+  const isLoading = ref(false)
+
+  async function execute(url: string, options?: RequestInit) {
+    // Cancel previous request
+    if (controller.value) {
+      controller.value.abort()
+    }
+
+    controller.value = new AbortController()
+    isLoading.value = true
+    error.value = null
+
+    try {
+      const response = await fetch(url, {
+        ...options,
+        signal: controller.value.signal
+      })
+
+      if (!response.ok) throw new Error(`HTTP ${response.status}`)
+      data.value = await response.json()
+    } catch (e) {
+      if (e instanceof Error && e.name === 'AbortError') {
+        // Request was cancelled, don't set error
+        return
+      }
+      error.value = e instanceof Error ? e.message : 'Request failed'
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  function cancel() {
+    controller.value?.abort()
+  }
+
+  onUnmounted(cancel)
+
+  return { data, error, isLoading, execute, cancel }
+}
+```
+
+## Debounced Search
+
+```typescript
+import { useDebounceFn } from '@/composables'
+
+const searchQuery = ref('')
+const searchResults = ref<SearchResult[]>([])
+
+const debouncedSearch = useDebounceFn(async (query: string) => {
+  if (!query.trim()) {
+    searchResults.value = []
+    return
+  }
+
+  const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`)
+  searchResults.value = await response.json()
+}, 300)
+
+watch(searchQuery, (query) => {
+  debouncedSearch(query)
+})
+```
+
+## Caching Strategy
+
+```typescript
+const cache = new Map<string, { data: unknown; timestamp: number }>()
+const CACHE_TTL = 5 * 60 * 1000 // 5 minutes
+
+async function fetchWithCache<T>(url: string): Promise<T> {
+  const cached = cache.get(url)
+
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    return cached.data as T
+  }
+
+  const response = await fetch(url)
+  const data = await response.json()
+
+  cache.set(url, { data, timestamp: Date.now() })
+
+  return data
+}
+
+function invalidateCache(urlPattern?: string) {
+  if (urlPattern) {
+    for (const key of cache.keys()) {
+      if (key.includes(urlPattern)) {
+        cache.delete(key)
+      }
+    }
+  } else {
+    cache.clear()
+  }
+}
+```
+
+## API Base Configuration
+
+```typescript
+// utils/api.ts
+const API_BASE = import.meta.env.VITE_API_URL || '/api'
+
+export async function api<T>(
+  endpoint: string,
+  options: RequestInit = {}
+): Promise<T> {
+  const url = endpoint.startsWith('http')
+    ? endpoint
+    : `${API_BASE}${endpoint}`
+
+  const response = await fetch(url, {
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers
+    },
+    ...options
+  })
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}))
+    throw new Error(error.message || `HTTP ${response.status}`)
+  }
+
+  return response.json()
+}
+
+// Usage
+const users = await api<User[]>('/users')
+const user = await api<User>('/users/123')
+await api<void>('/users', { method: 'POST', body: JSON.stringify(data) })
+```
+
+## Loading States in UI
+
+```vue
+<template>
+  <!-- Skeleton loading -->
+  <div v-if="isLoading" class="animate-pulse">
+    <div class="h-4 bg-gray-200 rounded w-3/4 mb-2" />
+    <div class="h-4 bg-gray-200 rounded w-1/2" />
+  </div>
+
+  <!-- Error state -->
+  <div v-else-if="error" class="p-4 bg-red-50 border border-red-200 rounded-lg">
+    <p class="text-red-600">{{ error }}</p>
+    <button @click="retry" class="mt-2 text-sm text-red-500 hover:underline">
+      {{ t('common.tryAgain') }}
+    </button>
+  </div>
+
+  <!-- Empty state -->
+  <div v-else-if="!data?.length" class="text-center py-12">
+    <p class="text-gray-500">{{ t('common.noData') }}</p>
+  </div>
+
+  <!-- Data -->
+  <div v-else>
+    <!-- Render data -->
+  </div>
+</template>
+```

@@ -1,0 +1,362 @@
+# Firebase Integration Rules
+
+## Firebase Configuration
+
+Firebase config is in `src/config/firebase.ts`:
+
+```typescript
+import { initializeApp } from 'firebase/app'
+import { getAuth } from 'firebase/auth'
+import { getFirestore } from 'firebase/firestore'
+import { getAnalytics } from 'firebase/analytics'
+
+const firebaseConfig = {
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+}
+
+export const app = initializeApp(firebaseConfig)
+export const auth = getAuth(app)
+export const db = getFirestore(app)
+export const analytics = typeof window !== 'undefined' ? getAnalytics(app) : null
+```
+
+## Authentication Patterns
+
+### Sign Up
+
+```typescript
+import { createUserWithEmailAndPassword, sendEmailVerification } from 'firebase/auth'
+import { auth } from '@/config/firebase'
+
+async function signUp(email: string, password: string) {
+  try {
+    const userCredential = await createUserWithEmailAndPassword(auth, email, password)
+    await sendEmailVerification(userCredential.user)
+    return userCredential.user
+  } catch (error) {
+    if (error instanceof FirebaseError) {
+      switch (error.code) {
+        case 'auth/email-already-in-use':
+          throw new Error('Email already registered')
+        case 'auth/weak-password':
+          throw new Error('Password is too weak')
+        default:
+          throw new Error('Failed to create account')
+      }
+    }
+    throw error
+  }
+}
+```
+
+### Sign In
+
+```typescript
+import { signInWithEmailAndPassword } from 'firebase/auth'
+
+async function signIn(email: string, password: string) {
+  try {
+    const userCredential = await signInWithEmailAndPassword(auth, email, password)
+    return userCredential.user
+  } catch (error) {
+    if (error instanceof FirebaseError) {
+      switch (error.code) {
+        case 'auth/user-not-found':
+        case 'auth/wrong-password':
+          throw new Error('Invalid email or password')
+        case 'auth/too-many-requests':
+          throw new Error('Too many attempts. Try again later.')
+        default:
+          throw new Error('Failed to sign in')
+      }
+    }
+    throw error
+  }
+}
+```
+
+### Auth State Observer
+
+```typescript
+import { onAuthStateChanged, type User } from 'firebase/auth'
+
+// In composable or store
+const user = ref<User | null>(null)
+const isLoading = ref(true)
+
+onAuthStateChanged(auth, (firebaseUser) => {
+  user.value = firebaseUser
+  isLoading.value = false
+})
+```
+
+## Firestore Patterns
+
+### Collection References
+
+```typescript
+import { collection, doc } from 'firebase/firestore'
+import { db } from '@/config/firebase'
+
+// Collection reference
+const resumesRef = collection(db, 'resumes')
+
+// Document reference
+const resumeRef = doc(db, 'resumes', resumeId)
+
+// Subcollection reference
+const sectionsRef = collection(db, 'resumes', resumeId, 'sections')
+```
+
+### Read Operations
+
+```typescript
+import {
+  getDocs,
+  getDoc,
+  query,
+  where,
+  orderBy,
+  limit,
+  onSnapshot
+} from 'firebase/firestore'
+
+// Get all documents
+async function getResumes(userId: string) {
+  const q = query(
+    collection(db, 'resumes'),
+    where('userId', '==', userId),
+    orderBy('updatedAt', 'desc')
+  )
+  const snapshot = await getDocs(q)
+  return snapshot.docs.map(doc => ({
+    id: doc.id,
+    ...doc.data()
+  }))
+}
+
+// Get single document
+async function getResume(id: string) {
+  const docRef = doc(db, 'resumes', id)
+  const snapshot = await getDoc(docRef)
+  if (!snapshot.exists()) {
+    throw new Error('Resume not found')
+  }
+  return { id: snapshot.id, ...snapshot.data() }
+}
+
+// Real-time listener
+function subscribeToResumes(userId: string, callback: (resumes: Resume[]) => void) {
+  const q = query(
+    collection(db, 'resumes'),
+    where('userId', '==', userId)
+  )
+
+  return onSnapshot(q, (snapshot) => {
+    const resumes = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }))
+    callback(resumes)
+  })
+}
+```
+
+### Write Operations
+
+```typescript
+import {
+  addDoc,
+  setDoc,
+  updateDoc,
+  deleteDoc,
+  serverTimestamp
+} from 'firebase/firestore'
+
+// Create document (auto-generated ID)
+async function createResume(data: Omit<Resume, 'id'>) {
+  const docRef = await addDoc(collection(db, 'resumes'), {
+    ...data,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp()
+  })
+  return docRef.id
+}
+
+// Create with specific ID
+async function createResumeWithId(id: string, data: Omit<Resume, 'id'>) {
+  await setDoc(doc(db, 'resumes', id), {
+    ...data,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp()
+  })
+}
+
+// Update document
+async function updateResume(id: string, data: Partial<Resume>) {
+  await updateDoc(doc(db, 'resumes', id), {
+    ...data,
+    updatedAt: serverTimestamp()
+  })
+}
+
+// Delete document
+async function deleteResume(id: string) {
+  await deleteDoc(doc(db, 'resumes', id))
+}
+```
+
+### Batch Operations
+
+```typescript
+import { writeBatch } from 'firebase/firestore'
+
+async function deleteMultipleResumes(ids: string[]) {
+  const batch = writeBatch(db)
+
+  ids.forEach(id => {
+    batch.delete(doc(db, 'resumes', id))
+  })
+
+  await batch.commit()
+}
+```
+
+## Firestore Security Rules
+
+```javascript
+// firestore.rules
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    // Resumes collection
+    match /resumes/{resumeId} {
+      allow read: if isAuthenticated() && isOwner(resource.data.userId);
+      allow create: if isAuthenticated() && isOwner(request.resource.data.userId);
+      allow update, delete: if isAuthenticated() && isOwner(resource.data.userId);
+    }
+
+    // Users collection
+    match /users/{userId} {
+      allow read, write: if isAuthenticated() && isOwner(userId);
+    }
+  }
+}
+```
+
+## Error Handling
+
+```typescript
+import { FirebaseError } from 'firebase/app'
+
+function handleFirebaseError(error: unknown): string {
+  if (error instanceof FirebaseError) {
+    // Auth errors
+    if (error.code.startsWith('auth/')) {
+      const authErrors: Record<string, string> = {
+        'auth/email-already-in-use': 'Email already registered',
+        'auth/invalid-email': 'Invalid email address',
+        'auth/user-not-found': 'User not found',
+        'auth/wrong-password': 'Incorrect password',
+        'auth/weak-password': 'Password is too weak',
+        'auth/too-many-requests': 'Too many attempts. Try again later.',
+        'auth/network-request-failed': 'Network error'
+      }
+      return authErrors[error.code] || 'Authentication error'
+    }
+
+    // Firestore errors
+    if (error.code.startsWith('firestore/')) {
+      const firestoreErrors: Record<string, string> = {
+        'firestore/permission-denied': 'Permission denied',
+        'firestore/not-found': 'Document not found',
+        'firestore/already-exists': 'Document already exists'
+      }
+      return firestoreErrors[error.code] || 'Database error'
+    }
+  }
+
+  return 'An unexpected error occurred'
+}
+```
+
+## Best Practices
+
+### 1. Always Use Timestamps
+
+```typescript
+// ✅ CORRECT - Server timestamps
+await addDoc(collection(db, 'resumes'), {
+  ...data,
+  createdAt: serverTimestamp(),
+  updatedAt: serverTimestamp()
+})
+
+// ❌ WRONG - Client timestamps
+await addDoc(collection(db, 'resumes'), {
+  ...data,
+  createdAt: new Date() // Don't use client time
+})
+```
+
+### 2. Unsubscribe from Listeners
+
+```typescript
+// In composable
+onUnmounted(() => {
+  if (unsubscribe) {
+    unsubscribe()
+  }
+})
+
+// In component
+const unsubscribe = subscribeToResumes(userId, handleUpdate)
+onUnmounted(unsubscribe)
+```
+
+### 3. Index for Complex Queries
+
+If you use compound queries, add indexes to `firestore.indexes.json`:
+
+```json
+{
+  "indexes": [
+    {
+      "collectionGroup": "resumes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "userId", "order": "ASCENDING" },
+        { "fieldPath": "updatedAt", "order": "DESCENDING" }
+      ]
+    }
+  ]
+}
+```
+
+### 4. Validate Data Before Write
+
+```typescript
+import { validateResume } from '@/utils/validation'
+
+async function saveResume(data: Resume) {
+  const errors = validateResume(data)
+  if (Object.keys(errors).length > 0) {
+    throw new Error('Invalid resume data')
+  }
+  // Proceed with save
+}
+```

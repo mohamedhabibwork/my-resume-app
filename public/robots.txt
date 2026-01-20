@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+Disallow: /dashboard
+Disallow: /resume/
+Disallow: /profile
+Disallow: /cover-letter/
+
+Sitemap: https://example.com/sitemap.xml
